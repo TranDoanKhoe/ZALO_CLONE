@@ -1,0 +1,22 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: zalo-app
+  profiles:
+    active: @spring.profiles.active@
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+
+logging:
+  level:
+    root: INFO
+    web: INFO
+    vn.edu.iuh.fit.zalo_app_be: DEBUG
+    org.springframework.messaging: DEBUG
+    org.springframework.web.socket: DEBUG

@@ -1,0 +1,29 @@
+version: "3.8"
+services:
+  backend:
+    build:
+      context: ./Zalo_App_BE
+    container_name: backend
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./Zalo_Clone_FE
+    container_name: frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+  jenkins:
+    build: ./jenkins
+    user: root
+    ports:
+      - "8081:8080"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+  
+volumes:
+  jenkins_home:

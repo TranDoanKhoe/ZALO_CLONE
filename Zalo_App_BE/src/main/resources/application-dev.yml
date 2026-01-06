@@ -1,0 +1,63 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+  devtools:
+    add-properties: true
+  data:
+    mongodb:
+      uri: mongodb+srv://admin:a7GkOoGANE6vI274@app-chat.xdfkqgl.mongodb.net/?retryWrites=true&w=majority&appName=app-chat
+      database: zalo-app
+  jackson:
+    time-zone: Asia/Ho_Chi_Minh
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: doankhoe0809@gmail.com
+    password: qshwxmslwmslscmb
+    reset-code-expiry-minutes: 10
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+      enabled: true
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+openapi:
+  service:
+    api-docs: zalo-app
+    server: http://localhost:${server.port}
+    title: Zalo app
+    version: 1.0.0
+
+jwt:
+  expiryMinutes: 10080
+  expiryDay: 7
+  accessKey: vp/W0H2km+ha54EMwdU0lsVb8JNtoFrRlXVgytwhCsA=
+  refreshKey: w+7+dny0YjqUN/bwKsejjgkBUdRUOeI7Liqr3jn2cqM=
+  resetKey: nApgUJd322ox7k/x11ep43ew88T3lidT88NoGFXY1t0=
+  resetPasswordExpiryMinutes: 10
+
+app:
+  frontend:
+    url: http://localhost:5173
+
+cloudinary:
+  cloud:
+    name: di7z5erbn
+    api-key: "596182778278691"
+    api-secret: tBjh2-Apc9GBwGxCBBrvotUTOB8
+
+avatar:
+  default: https://i.ibb.co/mrL8wYRs/default.jpg
