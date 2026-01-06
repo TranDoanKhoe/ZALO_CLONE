@@ -191,6 +191,29 @@ const Home = () => {
               isEdited: receivedMessage.isEdited || false,
             }];
           });
+
+          // Cập nhật contact list khi nhận tin nhắn mới
+          if (!isMounted) return;
+          const contactId = receivedMessage.groupId || (receivedMessage.receiverId === userId ? receivedMessage.senderId : receivedMessage.receiverId);
+          setContacts((prevContacts) => 
+            prevContacts.map(contact => {
+              if (contact.id === contactId) {
+                // Chỉ tăng unreadCount nếu KHÔNG phải mình gửi và không đang xem
+                const isCurrentlyViewing = selectedContact?.id === contactId;
+                const isSentByMe = receivedMessage.senderId === userId;
+                return {
+                  ...contact,
+                  lastMessage: receivedMessage.type === 'TEXT' ? receivedMessage.content : 
+                              receivedMessage.type === 'IMAGE' ? '[Hình ảnh]' :
+                              receivedMessage.type === 'VIDEO' ? '[Video]' :
+                              receivedMessage.type === 'AUDIO' ? '[Âm thanh]' : '[File]',
+                  timestamp: new Date().toISOString(),
+                  unreadCount: (isSentByMe || isCurrentlyViewing) ? 0 : (contact.unreadCount || 0) + 1
+                };
+              }
+              return contact;
+            })
+          );
         },
         (deletedMessage) => {
           if (!isMounted) return;
@@ -382,6 +405,15 @@ const Home = () => {
   useEffect(() => {
     if (!selectedContact || !token || !selectedContact.id) return;
 
+    // Reset unreadCount khi chọn contact
+    setContacts((prevContacts) =>
+      prevContacts.map(contact =>
+        contact.id === selectedContact.id
+          ? { ...contact, unreadCount: 0 }
+          : contact
+      )
+    );
+
     const loadChatHistory = async () => {
       try {
         let chatHistory;
@@ -447,7 +479,25 @@ const Home = () => {
 
       return [...prev, message];
     });
-  }, []);
+
+    // Cập nhật lastMessage trong contact list
+    const contactId = message.groupId || (message.receiverId === userId ? message.senderId : message.receiverId);
+    setContacts((prevContacts) => 
+      prevContacts.map(contact => {
+        if (contact.id === contactId) {
+          return {
+            ...contact,
+            lastMessage: message.type === 'TEXT' ? message.content : 
+                        message.type === 'IMAGE' ? '[Hình ảnh]' :
+                        message.type === 'VIDEO' ? '[Video]' :
+                        message.type === 'AUDIO' ? '[Âm thanh]' : '[File]',
+            timestamp: new Date().toISOString()
+          };
+        }
+        return contact;
+      })
+    );
+  }, [userId]);
 
   const handleProfileOpen = useCallback((user) => {
     setSelectedProfile(user);

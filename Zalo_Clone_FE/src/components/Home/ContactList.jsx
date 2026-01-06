@@ -185,20 +185,44 @@ const ContactList = ({
             <ListItemText
               primary={contact.isGroup ? `[Nhóm] ${contact.name}` : `${contact.username}`}
               secondary={contact.lastMessage || "Chưa có tin nhắn"}
+              sx={{ ml: 2 }}
               primaryTypographyProps={{
-                variant: 'h6',
-                sx: { fontSize: '1.1rem', fontWeight: 'medium' }
+                variant: 'body1',
+                sx: { 
+                  fontSize: '1rem', 
+                  fontWeight: contact.unreadCount > 0 ? '700' : '500', 
+                  mb: 0.5 
+                }
               }}
               secondaryTypographyProps={{
                 variant: 'body2',
                 noWrap: true,
                 sx: {
-                  fontSize: '0.95rem',
-                  color: contact.lastMessage ? 'text.primary' : 'text.secondary',
-                  fontWeight: contact.lastMessage ? 'medium' : 'normal'
+                  fontSize: '0.875rem',
+                  color: contact.unreadCount > 0 ? 'text.primary' : 'text.secondary',
+                  fontWeight: contact.unreadCount > 0 ? '600' : 'normal',
                 }
               }}
             />
+            {contact.unreadCount > 0 && (
+              <Box
+                sx={{
+                  bgcolor: '#0084ff',
+                  color: 'white',
+                  borderRadius: '50%',
+                  width: 20,
+                  height: 20,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.75rem',
+                  fontWeight: 'bold',
+                  ml: 1
+                }}
+              >
+                {contact.unreadCount}
+              </Box>
+            )}
           </ListItem>
         ))}
       </List>
