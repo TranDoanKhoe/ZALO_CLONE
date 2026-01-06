@@ -52,10 +52,18 @@ const RootContainer = styled(Box)(({ theme }) => ({
 
 const SidebarContainer = styled(Box)(({ theme }) => ({
   width: 320,
-  borderRight: "1px solid",
-  borderColor: theme.palette.divider,
+  borderRight: "1px solid #e0e0e0",
   display: "flex",
   flexDirection: "column",
+}));
+
+const HeaderContainer = styled(Box)(({ theme }) => ({
+  backgroundColor: "#ffffff",
+  padding: theme.spacing(2, 3),
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  borderBottom: "1px solid #e0e0e0",
 }));
 
 const Home = () => {
@@ -630,22 +638,56 @@ const Home = () => {
             onOpenChangePasswordModal={() => setOpenChangePasswordModal(true)}
           />
           <SidebarContainer>
-            <Box p={2} display="flex" flexDirection="column">
-              <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Typography variant="h6">
-                  {currentView === "messages"
-                    ? "Zalo Mess"
-                    : currentView === "contacts"
-                      ? "Contacts"
-                      : "Settings"}
-                </Typography>
-                <Box>                  <IconButton onClick={() => setUserSearchOpen(true)} sx={{ mr: 1 }} disabled={isLoading}>
+            <HeaderContainer>
+              <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#333' }}>
+                Zalo
+              </Typography>
+              <Box>
+                <IconButton onClick={() => setUserSearchOpen(true)} disabled={isLoading}>
                   <BiSearch title="Tìm kiếm" />
                 </IconButton>
-                  <IconButton onClick={handleMenuOpen} sx={{ mr: 1 }} disabled={isLoading}>
-                    <BiGroup title="Create Group" />
-                  </IconButton>
-                </Box>
+                <IconButton onClick={handleMenuOpen} disabled={isLoading}>
+                  <BiGroup title="Tạo nhóm" />
+                </IconButton>
+              </Box>
+            </HeaderContainer>
+            <Box sx={{ display: 'flex', borderBottom: '1px solid #e0e0e0', px: 2, pt: 2 }}>
+              <Box 
+                sx={{ 
+                  flex: 1, 
+                  textAlign: 'center', 
+                  pb: 1.5,
+                  borderBottom: '2px solid #0068ff',
+                  color: '#0068ff',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                Tất cả
+              </Box>
+              <Box 
+                sx={{ 
+                  flex: 1, 
+                  textAlign: 'center', 
+                  pb: 1.5,
+                  color: '#666',
+                  cursor: 'pointer',
+                  '&:hover': { color: '#0068ff' }
+                }}
+              >
+                Chưa đọc
+              </Box>
+              <Box 
+                sx={{ 
+                  flex: 1, 
+                  textAlign: 'center', 
+                  pb: 1.5,
+                  color: '#666',
+                  cursor: 'pointer',
+                  '&:hover': { color: '#0068ff' }
+                }}
+              >
+                Phân loại
               </Box>
             </Box>
             <Menu

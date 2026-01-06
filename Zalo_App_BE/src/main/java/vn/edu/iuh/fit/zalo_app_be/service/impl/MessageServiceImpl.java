@@ -74,7 +74,7 @@ public class MessageServiceImpl implements MessageService {
             message.setUpdatedAt(LocalDateTime.now());
             message.setRead(false);
             message.setPinned(request.isPinned());
-            message.setPinnedAt(request.getPinnedAt() != null ? request.getPinnedAt() : LocalDateTime.now());
+            message.setPinnedAt(request.isPinned() ? (request.getPinnedAt() != null ? request.getPinnedAt() : LocalDateTime.now()) : null);
 
             Message newMessage = messageRepository.save(message);
             log.info("Message sent from {} to {}: {}", request.getSenderId(), request.getReceiverId(), request.getContent());

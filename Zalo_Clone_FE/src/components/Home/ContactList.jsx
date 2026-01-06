@@ -47,10 +47,18 @@ const ContactList = ({
         variant="outlined"
         size="medium"
         sx={{
-          mb: 3,
+          mb: 2,
           '& .MuiOutlinedInput-root': {
-            fontSize: '1.1rem',
-            height: '50px'
+            fontSize: '1rem',
+            height: '45px',
+            backgroundColor: '#f5f5f5',
+            borderRadius: '20px',
+            '& fieldset': {
+              borderColor: 'transparent',
+            },
+            '&:hover fieldset': {
+              borderColor: '#e0e0e0',
+            },
           }
         }}
         value={searchQuery}
@@ -58,7 +66,7 @@ const ContactList = ({
         InputProps={{
           startAdornment: (
             <InputAdornment position="start">
-              <BiSearch fontSize={35} />
+              <BiSearch fontSize={24} />
             </InputAdornment>
           ),
         }}

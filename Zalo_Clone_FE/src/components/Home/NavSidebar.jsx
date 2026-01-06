@@ -8,20 +8,18 @@ import {
   Divider,
   Typography,
 } from "@mui/material";
-import { BiMessageSquareDetail, BiUser, BiCog, BiLogOut, BiExit } from "react-icons/bi";
+import { BiMessageSquareDetail, BiUser, BiCog, BiLogOut, BiExit, BiCloudUpload, BiCheck } from "react-icons/bi";
 import { styled } from "@mui/material/styles";
 
 
 const NavSidebarContainer = styled(Box)(({ theme }) => ({
   backgroundColor: "#0068ff",
   width: 90,
-  borderRight: "1px solid",
-  borderColor: theme.palette.divider,
+  borderRight: "1px solid #e0e0e0",
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
   padding: theme.spacing(2),
-  bgcolor: "#0088cc",
   color: "white",
 }));
 
@@ -97,6 +95,22 @@ const NavSidebar = ({
           onClick={() => onViewChange("contacts")}
         >
           <BiUser fontSize="32px" />
+        </IconButton>
+        <IconButton
+          sx={{
+            mb: 2,
+            color: "rgba(255,255,255,0.7)",
+          }}
+        >
+          <BiCloudUpload fontSize="32px" />
+        </IconButton>
+        <IconButton
+          sx={{
+            mb: 2,
+            color: "rgba(255,255,255,0.7)",
+          }}
+        >
+          <BiCheck fontSize="32px" />
         </IconButton>
         <Box sx={{ mt: "auto" }}>
           <IconButton

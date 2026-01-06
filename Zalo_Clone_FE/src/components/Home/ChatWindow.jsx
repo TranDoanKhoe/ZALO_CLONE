@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Box, Avatar, Typography, IconButton, TextField, Paper, styled, Dialog, DialogTitle, DialogContent, DialogActions, Button, CircularProgress, List, ListItem, ListItemAvatar, ListItemText, Menu, MenuItem, Tooltip } from '@mui/material';
-import { BiSearch, BiPhone, BiVideo, BiDotsVerticalRounded, BiSmile, BiPaperclip, BiSend, BiUndo, BiTrash, BiShare, BiGroup, BiPin, BiEdit } from 'react-icons/bi';
+import { BiSearch, BiPhone, BiVideo, BiDotsVerticalRounded, BiSmile, BiPaperclip, BiSend, BiUndo, BiTrash, BiShare, BiGroup, BiPin, BiEdit, BiImage, BiMicrophone, BiCheck, BiMenu } from 'react-icons/bi';
 import Picker from 'emoji-picker-react';
 import { sendMessage, uploadFile, recallMessage, deleteMessage, forwardMessage, pinMessage, unpinMessage, getPinnedMessages, editMessage } from '../../api/messageApi';
 import { fetchGroupMembers } from '../../api/groupApi';
@@ -29,11 +29,13 @@ const MessageContainer = styled(Box, {
 const MessageBubble = styled(Paper, {
   shouldForwardProp: (prop) => prop !== 'isSender',
 })(({ isSender, theme }) => ({
-  padding: '8px 16px',
-  backgroundColor: isSender ? theme.palette.primary.main : '#ffffff',
+  padding: '10px 16px',
+  backgroundColor: isSender ? '#0091ff' : '#ffffff',
   color: isSender ? 'white' : 'black',
-  borderRadius: 20,
+  borderRadius: 18,
   position: 'relative',
+  maxWidth: '70%',
+  boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
 }));
 
 const PinIndicator = styled(Box)(({ theme }) => ({
@@ -194,6 +196,10 @@ const ChatWindow = ({ selectedContact, messages, messageInput, onMessageInputCha
   const onEmojiClick = (emojiObject) => {
     const newMessageInput = messageInput + emojiObject.emoji;
     onMessageInputChange({ target: { value: newMessageInput } });
+    setShowEmojiPicker(false);
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   const handleFileUpload = async (event) => {
@@ -527,13 +533,21 @@ const ChatWindow = ({ selectedContact, messages, messageInput, onMessageInputCha
 
   return (
     <ChatContainer>
-      <Box p={2} display="flex" alignItems="center" borderBottom={1} borderColor="divider">
+      <Box 
+        p={2} 
+        display="flex" 
+        alignItems="center" 
+        borderBottom={1} 
+        borderColor="divider"
+        sx={{ 
+          bgcolor: 'white',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+        }}
+      >
         <Avatar
           src={selectedContact.avatar}
-          sx={{ cursor: 'pointer', width: 56,
-          height: 56, }}
+          sx={{ cursor: 'pointer', width: 48, height: 48 }}
           onClick={handleProfileOpen}
-           
         >
           {selectedContact.isGroup && <BiGroup />}
         </Avatar>
@@ -543,36 +557,40 @@ const ChatWindow = ({ selectedContact, messages, messageInput, onMessageInputCha
           sx={{ cursor: 'pointer' }}
           onClick={handleProfileOpen}
         >
-          <Typography variant="subtitle1">{selectedContact.name}</Typography>
-          <Typography variant="caption" color="textSecondary">
+          <Typography variant="subtitle1" sx={{ fontWeight: 'bold', fontSize: '1rem' }}>
+            {selectedContact.name}
+          </Typography>
+          <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.85rem' }}>
             {selectedContact.isGroup
-              ? `Nhóm (${groupMembers.length} thành viên)`
+              ? `Nhóm`
               : selectedContact.status === 'online' ? 'Online' : 'Online'}
           </Typography>
         </Box>
         {selectedContact.isGroup ? (
           <>
-            <IconButton onClick={() => setShowSearchBar(!showSearchBar)}>
-              <BiSearch />
+            <IconButton onClick={() => setShowSearchBar(!showSearchBar)} sx={{ color: '#666' }}>
+              <BiSearch size={22} />
             </IconButton>
-            <IconButton onClick={handleShowPinnedMessages}>
-              <BiPin />
+            <IconButton onClick={handleShowPinnedMessages} sx={{ color: '#666' }}>
+              <BiPin size={22} />
             </IconButton>
-
           </>
         ) : (
           <>
-            <IconButton onClick={() => setShowSearchBar(!showSearchBar)}>
-              <BiSearch />
+            <IconButton onClick={() => setShowSearchBar(!showSearchBar)} sx={{ color: '#666' }}>
+              <BiSearch size={22} />
             </IconButton>
-            <IconButton onClick={handleShowPinnedMessages}>
-              <BiPin />
+            <IconButton onClick={handleShowPinnedMessages} sx={{ color: '#666' }}>
+              <BiPin size={22} />
             </IconButton>
-            <IconButton>
-              <BiPhone />
+            <IconButton sx={{ color: '#666' }}>
+              <BiPhone size={22} />
             </IconButton>
-            <IconButton>
-              <BiVideo />
+            <IconButton sx={{ color: '#666' }}>
+              <BiVideo size={22} />
+            </IconButton>
+            <IconButton sx={{ color: '#666' }}>
+              <BiDotsVerticalRounded size={22} />
             </IconButton>
           </>
         )}
@@ -753,41 +771,73 @@ const ChatWindow = ({ selectedContact, messages, messageInput, onMessageInputCha
         <div ref={messagesEndRef} />
       </Box>
 
-      {showEmojiPicker && (
-        <Box sx={{ position: 'absolute', bottom: 60, left: 10, zIndex: 1000 }}>
-          <Picker onEmojiClick={onEmojiClick} />
-        </Box>
-      )}
-
-      <Box p={2} borderTop={1} borderColor="divider" sx={{ bgcolor: 'background.paper' }}>
+      <Box p={1.5} borderTop={1} borderColor="divider" sx={{ bgcolor: 'background.paper', position: 'relative' }}>
+        {showEmojiPicker && (
+          <Box sx={{ position: 'absolute', bottom: '100%', right: 10, zIndex: 1000 }}>
+            <Picker onEmojiClick={onEmojiClick} />
+          </Box>
+        )}
         <Box display="flex" alignItems="center" gap={1}>
-          <IconButton size="small" onClick={() => setShowEmojiPicker(!showEmojiPicker)} color="primary">
-            <BiSmile />
+          <IconButton size="medium" sx={{ color: '#0084ff' }}>
+            <BiPaperclip size={24} />
           </IconButton>
-          <IconButton size="small" component="label">
-            <BiPaperclip />
+          <IconButton size="medium" component="label" sx={{ color: '#0084ff' }}>
+            <BiImage size={24} />
             <input
               type="file"
               multiple
               hidden
               ref={fileInputRef}
               onChange={handleFileUpload}
-              accept="image/*,video/*,audio/*,application/zip,application/x-rar-compressed"
+              accept="image/*,video/*,audio/*"
             />
+          </IconButton>
+          <IconButton size="medium" sx={{ color: '#0084ff' }}>
+            <BiMicrophone size={24} />
           </IconButton>
           <TextField
             fullWidth
-            placeholder="Nhập tin nhắn"
+            placeholder={`Aa`}
             variant="outlined"
             size="small"
             value={messageInput}
             onChange={onMessageInputChange}
             onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
             inputRef={messageInputRef}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '20px',
+                backgroundColor: '#f0f2f5',
+                '& fieldset': {
+                  borderColor: 'transparent',
+                },
+                '&:hover fieldset': {
+                  borderColor: 'transparent',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#0084ff',
+                  borderWidth: '1px',
+                }
+              }
+            }}
           />
-          <IconButton color="primary" onClick={handleSendMessage} disabled={!messageInput.trim() || isSending}>
-            <BiSend />
+          <IconButton size="medium" onClick={() => setShowEmojiPicker(!showEmojiPicker)} sx={{ color: '#0084ff' }}>
+            <BiSmile size={24} />
           </IconButton>
+          {messageInput.trim() ? (
+            <IconButton 
+              onClick={handleSendMessage} 
+              disabled={isSending}
+              sx={{ 
+                color: '#0084ff',
+                '&:hover': {
+                  bgcolor: 'rgba(0, 132, 255, 0.1)',
+                }
+              }}
+            >
+              <BiSend size={24} />
+            </IconButton>
+          ) : null}
         </Box>
       </Box>
 
