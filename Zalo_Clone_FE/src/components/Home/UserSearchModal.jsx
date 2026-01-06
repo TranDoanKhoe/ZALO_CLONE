@@ -13,7 +13,7 @@ import {
   Alert
 } from '@mui/material';
 import { BiSearch, BiUserPlus } from 'react-icons/bi';
-import { sendFriendRequest, fetchUserByPhone } from '../../api/user';
+import { sendFriendRequest, fetchUserByPhone, fetchFriendsList } from '../../api/user';
 
 const UserSearchModal = ({ open, onClose }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -21,6 +21,8 @@ const UserSearchModal = ({ open, onClose }) => {
   const [searchPerformed, setSearchPerformed] = useState(false);
   const [resultMessage, setResultMessage] = useState({ type: '', message: '' });
   const [userFound, setUserFound] = useState(null);
+  const token = localStorage.getItem("accessToken");
+  const userId = localStorage.getItem("userId");
   
   const handleSearch = async () => {
     if (!phoneNumber.trim()) {
@@ -33,13 +35,36 @@ const UserSearchModal = ({ open, onClose }) => {
     
     try {
       const userData = await fetchUserByPhone(phoneNumber);
+      console.log('User data from API:', userData); // Debug
+      
       if (userData) {
+        // Kiểm tra friendStatus từ API hoặc gọi API riêng để check
+        let friendStatus = userData.friendStatus || 'NONE';
+        
+        // Nếu API không trả friendStatus, check thủ công
+        if (!userData.friendStatus) {
+          try {
+            const friendsList = await fetchFriendsList(token);
+            const isFriend = friendsList?.some(friend => friend.id === userData.id);
+            if (isFriend) {
+              friendStatus = 'FRIEND';
+            }
+          } catch (err) {
+            console.error('Error checking friend status:', err);
+          }
+        }
+        
         // Ánh xạ dữ liệu từ API vào cấu trúc frontend cần
+        const fullName = userData.name || 
+                        `${userData.firstName || ''} ${userData.lastName || ''}`.trim() ||
+                        userData.username ||
+                        userData.phone;
         setUserFound({
           id: userData.id,
-          name: `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+          name: fullName,
           phone: userData.phone,
-          avatar: userData.avatar || "https://i.pravatar.cc/150?img=" + Math.floor(Math.random() * 70)
+          avatar: userData.avatar || "https://i.pravatar.cc/150?img=" + Math.floor(Math.random() * 70),
+          friendStatus: friendStatus
         });
         setResultMessage({ type: 'success', message: 'Đã tìm thấy người dùng!' });
       } else {
@@ -162,15 +187,25 @@ const UserSearchModal = ({ open, onClose }) => {
                     <Typography variant="body2" color="textSecondary">{userFound.phone}</Typography>
                   </Box>
                 </Box>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  startIcon={<BiUserPlus />}
-                  onClick={handleSendFriendRequest}
-                  disabled={isLoading}
-                >
-                  Kết bạn
-                </Button>
+                {userFound.friendStatus === 'FRIEND' ? (
+                  <Typography variant="body2" color="success.main" sx={{ fontWeight: 'bold' }}>
+                    Đã là bạn bè
+                  </Typography>
+                ) : userFound.friendStatus === 'PENDING' ? (
+                  <Typography variant="body2" color="warning.main" sx={{ fontWeight: 'bold' }}>
+                    Đã gửi lời mời
+                  </Typography>
+                ) : (
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    startIcon={<BiUserPlus />}
+                    onClick={handleSendFriendRequest}
+                    disabled={isLoading}
+                  >
+                    Kết bạn
+                  </Button>
+                )}
               </Box>
             )}
           </>
