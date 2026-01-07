@@ -29,6 +29,7 @@ import {
     MenuItem,
     Snackbar,
     Alert,
+    InputBase,
 } from '@mui/material';
 import {
     BiUserPlus,
@@ -39,6 +40,7 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import NavSidebar from '../components/Home/NavSidebar';
 import ContactList from '../components/Home/ContactList';
+import FriendsList from '../components/Home/FriendsList';
 import SettingsPanel from '../components/Home/SettingsPanel';
 import ChatWindow from '../components/Home/ChatWindow';
 import ProfileModal from '../components/Home/ProfileModal';
@@ -161,6 +163,7 @@ const Home = () => {
     const [openChangePasswordModal, setOpenChangePasswordModal] =
         useState(false);
     const [groupAvatar, setGroupAvatar] = useState(null);
+    const [headerSearchQuery, setHeaderSearchQuery] = useState('');
 
     // Incoming call states
     const [incomingCall, setIncomingCall] = useState(null);
@@ -915,6 +918,75 @@ const Home = () => {
         }
     };
 
+    const handleStartCallFromFriendsList = async (friend, isVideo) => {
+        // Switch to messages view to show ChatWindow
+        setCurrentView('messages');
+        // Select the friend
+        setSelectedContact(friend);
+
+        // Wait for state updates then initiate call
+        setTimeout(async () => {
+            try {
+                setIsVideoCall(isVideo);
+                setCallStatus('Đang kết nối...');
+                setCallModalOpen(true);
+                setActiveCall({
+                    caller: friend,
+                    isVideoCall: isVideo,
+                    receiverId: friend.id,
+                });
+
+                // Initialize peer connection
+                initializePeerConnection(
+                    (candidate) => {
+                        sendCallSignal(
+                            'ice-candidate',
+                            candidate,
+                            friend.id,
+                            token,
+                        );
+                    },
+                    (stream) => {
+                        setRemoteStream(stream);
+                        setCallStatus('Đang gọi...');
+                    },
+                );
+
+                // Get local media stream
+                const stream = await startCall(isVideo);
+                setLocalStream(stream);
+
+                // Create and send offer
+                const offer = await createOffer();
+                sendCallSignal(
+                    'offer',
+                    { offer, isVideoCall: isVideo },
+                    friend.id,
+                    token,
+                );
+
+                setCallStatus('Đang đổ chuông...');
+            } catch (error) {
+                console.error('Error starting call:', error);
+
+                if (error.message.includes('quyền truy cập')) {
+                    setShowPermissionGuide(true);
+                    setPendingCallAction(
+                        () => () =>
+                            handleStartCallFromFriendsList(friend, isVideo),
+                    );
+                } else {
+                    setSnackbarMessage(
+                        'Không thể bắt đầu cuộc gọi: ' + error.message,
+                    );
+                    setSnackbarSeverity('error');
+                    setOpenSnackbar(true);
+                }
+                handleEndCall();
+            }
+        }, 200);
+    };
+
     const handleLogout = useCallback(() => {
         // Disconnect WebSocket trước khi đăng xuất để cập nhật status offline
         disconnectWebSocket();
@@ -1113,6 +1185,22 @@ const Home = () => {
         ],
     );
 
+    const filteredContacts = useMemo(() => {
+        if (!headerSearchQuery.trim()) {
+            return contacts;
+        }
+        const filtered = contacts.filter(
+            (contact) =>
+                contact.name
+                    ?.toLowerCase()
+                    .includes(headerSearchQuery.toLowerCase()) ||
+                contact.phone?.includes(headerSearchQuery),
+        );
+        console.log('Search query:', headerSearchQuery);
+        console.log('Filtered contacts:', filtered);
+        return filtered;
+    }, [contacts, headerSearchQuery]);
+
     return (
         <ErrorBoundary>
             <ThemeProvider theme={zaloTheme}>
@@ -1135,26 +1223,48 @@ const Home = () => {
                     />
                     <SidebarContainer>
                         <HeaderContainer>
-                            <Typography
-                                variant="h5"
-                                sx={{ fontWeight: 'bold', color: '#333' }}
+                            <Box
+                                sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    backgroundColor: '#f0f2f5',
+                                    borderRadius: '8px',
+                                    px: 2,
+                                    py: 1,
+                                    flex: 1,
+                                    mr: 1,
+                                }}
                             >
-                                Zalo
-                            </Typography>
-                            <Box>
-                                <IconButton
-                                    onClick={() => setUserSearchOpen(true)}
-                                    disabled={isLoading}
-                                >
-                                    <BiSearch title="Tìm kiếm" />
-                                </IconButton>
-                                <IconButton
-                                    onClick={handleMenuOpen}
-                                    disabled={isLoading}
-                                >
-                                    <BiGroup title="Tạo nhóm" />
-                                </IconButton>
+                                <BiSearch size={18} color="#7589a3" />
+                                <InputBase
+                                    placeholder="Tìm kiếm"
+                                    value={headerSearchQuery}
+                                    onChange={(e) =>
+                                        setHeaderSearchQuery(e.target.value)
+                                    }
+                                    sx={{
+                                        ml: 1,
+                                        flex: 1,
+                                        fontSize: '14px',
+                                    }}
+                                />
                             </Box>
+                            <IconButton
+                                onClick={() => setUserSearchOpen(true)}
+                                disabled={isLoading}
+                                title="Thêm bạn"
+                                sx={{ color: '#7589a3' }}
+                            >
+                                <BiUserPlus size={22} />
+                            </IconButton>
+                            <IconButton
+                                onClick={handleMenuOpen}
+                                disabled={isLoading}
+                                title="Menu"
+                                sx={{ color: '#7589a3' }}
+                            >
+                                <BiDotsVerticalRounded size={22} />
+                            </IconButton>
                         </HeaderContainer>
                         <Box
                             sx={{
@@ -1213,9 +1323,17 @@ const Home = () => {
                                     handleMenuClose();
                                 }}
                             >
-                                Tìm kiếm bạn bè
+                                <BiUserPlus
+                                    size={20}
+                                    style={{ marginRight: 12 }}
+                                />
+                                Thêm bạn bè
                             </MenuItem>
                             <MenuItem onClick={handleOpenCreateGroup}>
+                                <BiGroup
+                                    size={20}
+                                    style={{ marginRight: 12 }}
+                                />
                                 Tạo nhóm
                             </MenuItem>
                         </Menu>
@@ -1238,7 +1356,7 @@ const Home = () => {
                         </Snackbar>
                         {currentView === 'messages' && (
                             <ContactList
-                                contacts={contacts}
+                                contacts={filteredContacts}
                                 selectedContact={selectedContact}
                                 onContactSelect={setSelectedContact}
                                 pendingRequests={pendingRequests}
@@ -1252,18 +1370,11 @@ const Home = () => {
                             />
                         )}
                         {currentView === 'contacts' && (
-                            <ContactList
-                                contacts={contacts}
-                                selectedContact={selectedContact}
-                                onContactSelect={setSelectedContact}
-                                pendingRequests={pendingRequests}
-                                onAcceptFriendRequest={
-                                    handleAcceptFriendRequest
-                                }
-                                isLoading={isLoading}
-                                fetchPendingFriendRequests={
-                                    fetchPendingFriendRequests
-                                }
+                            <FriendsList
+                                contacts={filteredContacts}
+                                onSelectContact={setSelectedContact}
+                                onOpenUserSearch={() => setUserSearchOpen(true)}
+                                onStartCall={handleStartCallFromFriendsList}
                             />
                         )}
                         <SettingsPanel
