@@ -278,6 +278,18 @@ const Home = () => {
                 : msg
             )
           );
+        },
+        (statusChange) => {
+          if (!isMounted) return;
+          console.log('Received status change notification:', statusChange);
+          // statusChange có dạng: { userId: 'xxx', status: 'online' hoặc 'offline' }
+          setContacts((prevContacts) =>
+            prevContacts.map(contact =>
+              contact.id === statusChange.userId
+                ? { ...contact, status: statusChange.status }
+                : contact
+            )
+          );
         }
       ).then(() => {
         if (!isMounted) return;
@@ -349,7 +361,7 @@ const Home = () => {
             name: friend.name,
             username: friend.name,
             avatar: friend.avatar || `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70)}`,
-            status: friend.status || "offline",
+            status: friend.activeStatus ? friend.activeStatus.toLowerCase() : "offline",
             lastMessage: friend.lastMessage || "",
             unreadCount: friend.unreadCount || 0,
             timestamp: friend.timestamp || "Yesterday",
@@ -518,6 +530,9 @@ const Home = () => {
   };
 
   const handleLogout = useCallback(() => {
+    // Disconnect WebSocket trước khi đăng xuất để cập nhật status offline
+    disconnectWebSocket();
+    
     localStorage.removeItem("userId");
     localStorage.removeItem("accessToken");
     localStorage.removeItem("deletedMessageIds");

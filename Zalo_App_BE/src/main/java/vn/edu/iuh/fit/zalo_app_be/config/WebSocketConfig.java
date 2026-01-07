@@ -95,6 +95,15 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                                             userDetails.getAuthorities()
                                     )
                             );
+                            
+                            // Lưu userId vào session attributes để dùng trong event listener
+                            if (StompCommand.CONNECT.equals(command)) {
+                                String userId = accessor.getFirstNativeHeader("userId");
+                                if (userId != null && accessor.getSessionAttributes() != null) {
+                                    accessor.getSessionAttributes().put("userId", userId);
+                                    log.info("Stored userId in session: {}", userId);
+                                }
+                            }
                         } catch (Exception e) {
                             StompHeaderAccessor error = StompHeaderAccessor.create(StompCommand.ERROR);
                             error.setMessage("Invalid JWT token: " + e.getMessage());

@@ -523,8 +523,15 @@ const ChatWindow = ({ selectedContact, messages, messageInput, onMessageInputCha
 
   if (!selectedContact) {
     return (
-      <Box display="flex" alignItems="center" justifyContent="center" height="100%">
-        <Typography variant="h6" color="text.secondary">
+      <Box 
+        display="flex" 
+        alignItems="center" 
+        justifyContent="center" 
+        height="100%" 
+        width="100%"
+        textAlign="center"
+      >
+        <Typography variant="h6" color="text.secondary" sx={{ textAlign: 'center' }}>
           Chọn một cuộc trò chuyện để bắt đầu nhắn tin
         </Typography>
       </Box>
@@ -563,7 +570,7 @@ const ChatWindow = ({ selectedContact, messages, messageInput, onMessageInputCha
           <Typography variant="caption" color="textSecondary" sx={{ fontSize: '0.85rem' }}>
             {selectedContact.isGroup
               ? `Nhóm`
-              : selectedContact.status === 'online' ? 'Online' : 'Online'}
+              : selectedContact.status === 'online' ? 'Online' : 'Offline'}
           </Typography>
         </Box>
         {selectedContact.isGroup ? (
