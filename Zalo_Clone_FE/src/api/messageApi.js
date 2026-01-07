@@ -8,17 +8,22 @@ const SOCKJS_URL = '/ws';
 let stompClient = null;
 
 // Hàm lấy lịch sử tin nhắn 1-1
-export const getChatHistory = async(userId, token) => {
+export const getChatHistory = async (userId, token) => {
     try {
-        const response = await axios.get(`${API_BASE_URL}/chat-history/${userId}`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
+        const response = await axios.get(
+            `${API_BASE_URL}/chat-history/${userId}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
             },
-        });
-        const deletedMessageIds = JSON.parse(localStorage.getItem('deletedMessageIds') || '[]');
+        );
+        const deletedMessageIds = JSON.parse(
+            localStorage.getItem('deletedMessageIds') || '[]',
+        );
         return response.data
-            .filter(msg => !deletedMessageIds.includes(msg._id || msg.id))
-            .map(msg => ({
+            .filter((msg) => !deletedMessageIds.includes(msg._id || msg.id))
+            .map((msg) => ({
                 ...msg,
                 id: msg._id || msg.id,
                 _id: undefined,
@@ -30,17 +35,22 @@ export const getChatHistory = async(userId, token) => {
 };
 
 // Hàm lấy lịch sử tin nhắn nhóm
-export const getGroupChatHistory = async(groupId, token) => {
+export const getGroupChatHistory = async (groupId, token) => {
     try {
-        const response = await axios.get(`${API_BASE_URL}/chat-history/group/${groupId}`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
+        const response = await axios.get(
+            `${API_BASE_URL}/chat-history/group/${groupId}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
             },
-        });
-        const deletedMessageIds = JSON.parse(localStorage.getItem('deletedMessageIds') || '[]');
+        );
+        const deletedMessageIds = JSON.parse(
+            localStorage.getItem('deletedMessageIds') || '[]',
+        );
         return response.data
-            .filter(msg => !deletedMessageIds.includes(msg._id || msg.id))
-            .map(msg => ({
+            .filter((msg) => !deletedMessageIds.includes(msg._id || msg.id))
+            .map((msg) => ({
                 ...msg,
                 id: msg._id || msg.id,
                 _id: undefined,
@@ -52,25 +62,36 @@ export const getGroupChatHistory = async(groupId, token) => {
 };
 
 // Hàm upload file
-export const uploadFile = async(files, receiverId, token, groupId = null, replyToMessageId = null) => {
+export const uploadFile = async (
+    files,
+    receiverId,
+    token,
+    groupId = null,
+    replyToMessageId = null,
+) => {
     if (!stompClient || !stompClient.connected) {
         throw new Error('Không thể gửi file: WebSocket không hoạt động');
     }
     try {
         const formData = new FormData();
-        files.forEach(file => {
+        files.forEach((file) => {
             formData.append('file', file);
         });
         if (receiverId) formData.append('receiverId', receiverId);
         if (groupId) formData.append('groupId', groupId);
-        if (replyToMessageId) formData.append('replyToMessageId', replyToMessageId);
+        if (replyToMessageId)
+            formData.append('replyToMessageId', replyToMessageId);
 
-        const response = await axios.post(`${API_BASE_URL}/upload-file`, formData, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'multipart/form-data',
+        const response = await axios.post(
+            `${API_BASE_URL}/upload-file`,
+            formData,
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'multipart/form-data',
+                },
             },
-        });
+        );
         return response.data;
     } catch (error) {
         console.error('Error uploading file:', {
@@ -83,10 +104,19 @@ export const uploadFile = async(files, receiverId, token, groupId = null, replyT
 };
 
 // Hàm tìm kiếm tin nhắn
-export const searchMessages = async(userId, otherUserId, groupId, keyword, token) => {
+export const searchMessages = async (
+    userId,
+    otherUserId,
+    groupId,
+    keyword,
+    token,
+) => {
     try {
-        const effectiveOtherUserId = groupId ? userId : (otherUserId || userId);
-        const params = new URLSearchParams({ otherUserId: effectiveOtherUserId, keyword });
+        const effectiveOtherUserId = groupId ? userId : otherUserId || userId;
+        const params = new URLSearchParams({
+            otherUserId: effectiveOtherUserId,
+            keyword,
+        });
         if (groupId) params.append('groupId', groupId);
 
         console.log('Search messages params:', params.toString());
@@ -96,23 +126,28 @@ export const searchMessages = async(userId, otherUserId, groupId, keyword, token
                 Authorization: `Bearer ${token}`,
             },
         });
-        const deletedMessageIds = JSON.parse(localStorage.getItem('deletedMessageIds') || '[]');
+        const deletedMessageIds = JSON.parse(
+            localStorage.getItem('deletedMessageIds') || '[]',
+        );
         return response.data
-            .filter(msg => !deletedMessageIds.includes(msg._id || msg.id))
-            .map(msg => ({
+            .filter((msg) => !deletedMessageIds.includes(msg._id || msg.id))
+            .map((msg) => ({
                 ...msg,
                 id: msg._id || msg.id,
                 _id: undefined,
                 createAt: msg.createAt || msg.createdAt,
             }));
     } catch (error) {
-        console.error('Error searching messages:', error.response?.data || error.message);
+        console.error(
+            'Error searching messages:',
+            error.response?.data || error.message,
+        );
         throw error;
     }
 };
 
 // Hàm lấy danh sách tin nhắn đã ghim
-export const getPinnedMessages = async(otherUserId, groupId, token) => {
+export const getPinnedMessages = async (otherUserId, groupId, token) => {
     try {
         const params = new URLSearchParams();
         if (groupId) {
@@ -123,29 +158,37 @@ export const getPinnedMessages = async(otherUserId, groupId, token) => {
         }
 
         console.log('Get pinned messages params:', params.toString());
-        const response = await axios.get(`${API_BASE_URL}/all-pinned-messages`, {
-            params,
-            headers: {
-                Authorization: `Bearer ${token}`,
+        const response = await axios.get(
+            `${API_BASE_URL}/all-pinned-messages`,
+            {
+                params,
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
             },
-        });
-        const deletedMessageIds = JSON.parse(localStorage.getItem('deletedMessageIds') || '[]');
+        );
+        const deletedMessageIds = JSON.parse(
+            localStorage.getItem('deletedMessageIds') || '[]',
+        );
         return response.data
-            .filter(msg => !deletedMessageIds.includes(msg._id || msg.id))
-            .map(msg => ({
+            .filter((msg) => !deletedMessageIds.includes(msg._id || msg.id))
+            .map((msg) => ({
                 ...msg,
                 id: msg._id || msg.id,
                 _id: undefined,
                 createAt: msg.createAt || msg.createdAt,
             }));
     } catch (error) {
-        console.error('Error fetching pinned messages:', error.response?.data || error.message);
+        console.error(
+            'Error fetching pinned messages:',
+            error.response?.data || error.message,
+        );
         throw error;
     }
 };
 
 // Hàm ghim tin nhắn
-export const pinMessage = async(messageId, userId, token) => {
+export const pinMessage = async (messageId, userId, token) => {
     if (!stompClient || !stompClient.connected) {
         console.error('Cannot pin message: STOMP client is not connected');
         return false;
@@ -166,7 +209,7 @@ export const pinMessage = async(messageId, userId, token) => {
 };
 
 // Hàm bỏ ghim tin nhắn
-export const unpinMessage = async(messageId, userId, token) => {
+export const unpinMessage = async (messageId, userId, token) => {
     if (!stompClient || !stompClient.connected) {
         console.error('Cannot unpin message: STOMP client is not connected');
         return false;
@@ -187,7 +230,13 @@ export const unpinMessage = async(messageId, userId, token) => {
 };
 
 // Hàm chỉnh sửa tin nhắn
-export const editMessage = async(messageId, userId, content, groupId, token) => {
+export const editMessage = async (
+    messageId,
+    userId,
+    content,
+    groupId,
+    token,
+) => {
     if (!stompClient || !stompClient.connected) {
         console.error('Cannot edit message: STOMP client is not connected');
         return false;
@@ -214,7 +263,19 @@ export const editMessage = async(messageId, userId, content, groupId, token) => 
 };
 
 // Hàm kết nối WebSocket với STOMP
-export function connectWebSocket(token, userId, onMessageCallback, onDeleteCallback, onRecallCallback, onPinCallback, onUnpinCallback, groupIds = [], onFriendRequestCallback, onEditCallback, onStatusChangeCallback) {
+export function connectWebSocket(
+    token,
+    userId,
+    onMessageCallback,
+    onDeleteCallback,
+    onRecallCallback,
+    onPinCallback,
+    onUnpinCallback,
+    groupIds = [],
+    onFriendRequestCallback,
+    onEditCallback,
+    onStatusChangeCallback,
+) {
     return new Promise((resolve, reject) => {
         if (!token) {
             reject(new Error('Token is missing'));
@@ -251,52 +312,19 @@ export function connectWebSocket(token, userId, onMessageCallback, onDeleteCallb
         });
 
         stompClient.onConnect = (frame) => {
-            if (!stompClient) {
-                console.error('STOMP client is null in onConnect');
-                reject(new Error('STOMP client is null'));
-                return;
-            }
-
             console.log('STOMP connected:', frame);
 
-            // Subscription cho tin nhắn 1-1
-            stompClient.subscribe(`/user/${userId}/queue/messages`, (message) => {
-                try {
-                    const parsedMessage = JSON.parse(message.body);
-                    console.log('Raw WebSocket response:', parsedMessage);
-                    const normalizedMessage = {
-                        id: parsedMessage._id || parsedMessage.id,
-                        senderId: parsedMessage.senderId,
-                        receiverId: parsedMessage.receiverId,
-                        groupId: parsedMessage.groupId,
-                        content: parsedMessage.content,
-                        type: parsedMessage.type || 'TEXT',
-                        createAt: parsedMessage.createdAt || parsedMessage.createAt || new Date().toISOString(),
-                        recalled: parsedMessage.recalled || false,
-                        deletedByUsers: parsedMessage.deletedByUsers || [],
-                        isRead: parsedMessage.isRead || false,
-                        isPinned: parsedMessage.isPinned || false,
-                        fileName: parsedMessage.fileName || '',
-                        thumbnail: parsedMessage.thumbnail || '',
-                        publicId: parsedMessage.publicId || '',
-                        isEdited: parsedMessage.isEdited || false,
-                    };
-                    const deletedMessageIds = JSON.parse(localStorage.getItem('deletedMessageIds') || '[]');
-                    if (!deletedMessageIds.includes(normalizedMessage.id)) {
-                        onMessageCallback(normalizedMessage);
-                    }
-                } catch (error) {
-                    console.error('Error parsing message:', error);
-                }
-            }, { Authorization: `Bearer ${token}` });
-
-            // Subscription cho tin nhắn nhóm
-            groupIds.forEach(groupId => {
-                if (groupId) {
-                    stompClient.subscribe(`/topic/group/${groupId}`, (message) => {
+            try {
+                // Subscription cho tin nhắn 1-1
+                stompClient.subscribe(
+                    `/user/${userId}/queue/messages`,
+                    (message) => {
                         try {
                             const parsedMessage = JSON.parse(message.body);
-                            console.log('Raw group WebSocket response:', parsedMessage);
+                            console.log(
+                                'Raw WebSocket response:',
+                                parsedMessage,
+                            );
                             const normalizedMessage = {
                                 id: parsedMessage._id || parsedMessage.id,
                                 senderId: parsedMessage.senderId,
@@ -304,9 +332,13 @@ export function connectWebSocket(token, userId, onMessageCallback, onDeleteCallb
                                 groupId: parsedMessage.groupId,
                                 content: parsedMessage.content,
                                 type: parsedMessage.type || 'TEXT',
-                                createAt: parsedMessage.createdAt || parsedMessage.createAt || new Date().toISOString(),
+                                createAt:
+                                    parsedMessage.createdAt ||
+                                    parsedMessage.createAt ||
+                                    new Date().toISOString(),
                                 recalled: parsedMessage.recalled || false,
-                                deletedByUsers: parsedMessage.deletedByUsers || [],
+                                deletedByUsers:
+                                    parsedMessage.deletedByUsers || [],
                                 isRead: parsedMessage.isRead || false,
                                 isPinned: parsedMessage.isPinned || false,
                                 fileName: parsedMessage.fileName || '',
@@ -314,142 +346,285 @@ export function connectWebSocket(token, userId, onMessageCallback, onDeleteCallb
                                 publicId: parsedMessage.publicId || '',
                                 isEdited: parsedMessage.isEdited || false,
                             };
-                            const deletedMessageIds = JSON.parse(localStorage.getItem('deletedMessageIds') || '[]');
-                            if (!deletedMessageIds.includes(normalizedMessage.id)) {
+                            const deletedMessageIds = JSON.parse(
+                                localStorage.getItem('deletedMessageIds') ||
+                                    '[]',
+                            );
+                            if (
+                                !deletedMessageIds.includes(
+                                    normalizedMessage.id,
+                                )
+                            ) {
                                 onMessageCallback(normalizedMessage);
                             }
                         } catch (error) {
-                            console.error('Error parsing group message:', error);
+                            console.error('Error parsing message:', error);
                         }
-                    }, { Authorization: `Bearer ${token}` });
-                } else {
-                    console.warn('Skipping subscription for undefined groupId');
-                }
-            });
+                    },
+                    { Authorization: `Bearer ${token}` },
+                );
 
-            // Subscription cho thông báo xóa
-            stompClient.subscribe(`/user/${userId}/queue/delete`, (message) => {
-                try {
-                    const parsedMessage = JSON.parse(message.body);
-                    console.log('Delete notification:', parsedMessage);
-                    if (parsedMessage._id) {
-                        parsedMessage.id = parsedMessage._id;
-                        delete parsedMessage._id;
-                    }
-                    onDeleteCallback(parsedMessage);
-                } catch (error) {
-                    console.error('Error parsing delete notification:', error);
-                }
-            }, { Authorization: `Bearer ${token}` });
-
-            // Subscription cho thông báo thu hồi
-            stompClient.subscribe(`/user/${userId}/queue/recall`, (message) => {
-                try {
-                    const parsedMessage = JSON.parse(message.body);
-                    console.log('Recall notification:', parsedMessage);
-                    if (parsedMessage._id) {
-                        parsedMessage.id = parsedMessage._id;
-                        delete parsedMessage._id;
-                    }
-                    onRecallCallback(parsedMessage);
-                } catch (error) {
-                    console.error('Error parsing recall notification:', error);
-                }
-            }, { Authorization: `Bearer ${token}` });
-
-            // Subscription cho thông báo ghim tin nhắn
-            stompClient.subscribe(`/user/${userId}/queue/pin`, (message) => {
-                try {
-                    const parsedMessage = JSON.parse(message.body);
-                    console.log('Pin notification:', parsedMessage);
-                    if (parsedMessage._id) {
-                        parsedMessage.id = parsedMessage._id;
-                        delete parsedMessage._id;
-                    }
-                    if (onPinCallback) {
-                        onPinCallback(parsedMessage);
+                // Subscription cho tin nhắn nhóm
+                groupIds.forEach((groupId) => {
+                    if (groupId) {
+                        stompClient.subscribe(
+                            `/topic/group/${groupId}`,
+                            (message) => {
+                                try {
+                                    const parsedMessage = JSON.parse(
+                                        message.body,
+                                    );
+                                    console.log(
+                                        'Raw group WebSocket response:',
+                                        parsedMessage,
+                                    );
+                                    const normalizedMessage = {
+                                        id:
+                                            parsedMessage._id ||
+                                            parsedMessage.id,
+                                        senderId: parsedMessage.senderId,
+                                        receiverId: parsedMessage.receiverId,
+                                        groupId: parsedMessage.groupId,
+                                        content: parsedMessage.content,
+                                        type: parsedMessage.type || 'TEXT',
+                                        createAt:
+                                            parsedMessage.createdAt ||
+                                            parsedMessage.createAt ||
+                                            new Date().toISOString(),
+                                        recalled:
+                                            parsedMessage.recalled || false,
+                                        deletedByUsers:
+                                            parsedMessage.deletedByUsers || [],
+                                        isRead: parsedMessage.isRead || false,
+                                        isPinned:
+                                            parsedMessage.isPinned || false,
+                                        fileName: parsedMessage.fileName || '',
+                                        thumbnail:
+                                            parsedMessage.thumbnail || '',
+                                        publicId: parsedMessage.publicId || '',
+                                        isEdited:
+                                            parsedMessage.isEdited || false,
+                                    };
+                                    const deletedMessageIds = JSON.parse(
+                                        localStorage.getItem(
+                                            'deletedMessageIds',
+                                        ) || '[]',
+                                    );
+                                    if (
+                                        !deletedMessageIds.includes(
+                                            normalizedMessage.id,
+                                        )
+                                    ) {
+                                        onMessageCallback(normalizedMessage);
+                                    }
+                                } catch (error) {
+                                    console.error(
+                                        'Error parsing group message:',
+                                        error,
+                                    );
+                                }
+                            },
+                            { Authorization: `Bearer ${token}` },
+                        );
                     } else {
-                        console.warn('onPinCallback is not defined');
+                        console.warn(
+                            'Skipping subscription for undefined groupId',
+                        );
                     }
-                } catch (error) {
-                    console.error('Error parsing pin notification:', error);
-                }
-            }, { Authorization: `Bearer ${token}` });
+                });
 
-            // Subscription cho thông báo bỏ ghim tin nhắn
-            stompClient.subscribe(`/user/${userId}/queue/unpin`, (message) => {
-                try {
-                    const parsedMessage = JSON.parse(message.body);
-                    console.log('Unpin notification:', parsedMessage);
-                    if (parsedMessage._id) {
-                        parsedMessage.id = parsedMessage._id;
-                        delete parsedMessage._id;
-                    }
-                    if (onUnpinCallback) {
-                        onUnpinCallback(parsedMessage);
-                    } else {
-                        console.warn('onUnpinCallback is not defined');
-                    }
-                } catch (error) {
-                    console.error('Error parsing unpin notification:', error);
-                }
-            }, { Authorization: `Bearer ${token}` });
+                // Subscription cho thông báo xóa
+                stompClient.subscribe(
+                    `/user/${userId}/queue/delete`,
+                    (message) => {
+                        try {
+                            const parsedMessage = JSON.parse(message.body);
+                            console.log('Delete notification:', parsedMessage);
+                            if (parsedMessage._id) {
+                                parsedMessage.id = parsedMessage._id;
+                                delete parsedMessage._id;
+                            }
+                            onDeleteCallback(parsedMessage);
+                        } catch (error) {
+                            console.error(
+                                'Error parsing delete notification:',
+                                error,
+                            );
+                        }
+                    },
+                    { Authorization: `Bearer ${token}` },
+                );
 
-            // Subscription cho thông báo chỉnh sửa tin nhắn
-            stompClient.subscribe(`/user/${userId}/queue/edit`, (message) => {
-                try {
-                    const parsedMessage = JSON.parse(message.body);
-                    console.log('Edit notification:', parsedMessage);
-                    if (parsedMessage._id) {
-                        parsedMessage.id = parsedMessage._id;
-                        delete parsedMessage._id;
-                    }
-                    if (onEditCallback) {
-                        onEditCallback(parsedMessage);
-                    } else {
-                        console.warn('onEditCallback is not defined');
-                    }
-                } catch (error) {
-                    console.error('Error parsing edit notification:', error);
-                }
-            }, { Authorization: `Bearer ${token}` });
+                // Subscription cho thông báo thu hồi
+                stompClient.subscribe(
+                    `/user/${userId}/queue/recall`,
+                    (message) => {
+                        try {
+                            const parsedMessage = JSON.parse(message.body);
+                            console.log('Recall notification:', parsedMessage);
+                            if (parsedMessage._id) {
+                                parsedMessage.id = parsedMessage._id;
+                                delete parsedMessage._id;
+                            }
+                            onRecallCallback(parsedMessage);
+                        } catch (error) {
+                            console.error(
+                                'Error parsing recall notification:',
+                                error,
+                            );
+                        }
+                    },
+                    { Authorization: `Bearer ${token}` },
+                );
 
-            // Subscription cho thông báo yêu cầu kết bạn
-            stompClient.subscribe(`/user/${userId}/queue/friendRequest`, (message) => {
-                try {
-                    const parsedMessage = JSON.parse(message.body);
-                    console.log('Friend request notification:', parsedMessage);
-                    if (onFriendRequestCallback) {
-                        onFriendRequestCallback(parsedMessage);
-                    } else {
-                        console.warn('onFriendRequestCallback is not defined');
-                    }
-                } catch (error) {
-                    console.error('Error parsing friend request notification:', error);
-                }
-            }, { Authorization: `Bearer ${token}` });
+                // Subscription cho thông báo ghim tin nhắn
+                stompClient.subscribe(
+                    `/user/${userId}/queue/pin`,
+                    (message) => {
+                        try {
+                            const parsedMessage = JSON.parse(message.body);
+                            console.log('Pin notification:', parsedMessage);
+                            if (parsedMessage._id) {
+                                parsedMessage.id = parsedMessage._id;
+                                delete parsedMessage._id;
+                            }
+                            if (onPinCallback) {
+                                onPinCallback(parsedMessage);
+                            } else {
+                                console.warn('onPinCallback is not defined');
+                            }
+                        } catch (error) {
+                            console.error(
+                                'Error parsing pin notification:',
+                                error,
+                            );
+                        }
+                    },
+                    { Authorization: `Bearer ${token}` },
+                );
 
-            // Subscription cho thông báo thay đổi trạng thái online/offline
-            stompClient.subscribe(`/user/${userId}/queue/status`, (message) => {
-                try {
-                    const parsedMessage = JSON.parse(message.body);
-                    console.log('Status change notification:', parsedMessage);
-                    if (onStatusChangeCallback) {
-                        onStatusChangeCallback(parsedMessage);
-                    } else {
-                        console.warn('onStatusChangeCallback is not defined');
-                    }
-                } catch (error) {
-                    console.error('Error parsing status change notification:', error);
-                }
-            }, { Authorization: `Bearer ${token}` });
+                // Subscription cho thông báo bỏ ghim tin nhắn
+                stompClient.subscribe(
+                    `/user/${userId}/queue/unpin`,
+                    (message) => {
+                        try {
+                            const parsedMessage = JSON.parse(message.body);
+                            console.log('Unpin notification:', parsedMessage);
+                            if (parsedMessage._id) {
+                                parsedMessage.id = parsedMessage._id;
+                                delete parsedMessage._id;
+                            }
+                            if (onUnpinCallback) {
+                                onUnpinCallback(parsedMessage);
+                            } else {
+                                console.warn('onUnpinCallback is not defined');
+                            }
+                        } catch (error) {
+                            console.error(
+                                'Error parsing unpin notification:',
+                                error,
+                            );
+                        }
+                    },
+                    { Authorization: `Bearer ${token}` },
+                );
 
-            resolve();
+                // Subscription cho thông báo chỉnh sửa tin nhắn
+                stompClient.subscribe(
+                    `/user/${userId}/queue/edit`,
+                    (message) => {
+                        try {
+                            const parsedMessage = JSON.parse(message.body);
+                            console.log('Edit notification:', parsedMessage);
+                            if (parsedMessage._id) {
+                                parsedMessage.id = parsedMessage._id;
+                                delete parsedMessage._id;
+                            }
+                            if (onEditCallback) {
+                                onEditCallback(parsedMessage);
+                            } else {
+                                console.warn('onEditCallback is not defined');
+                            }
+                        } catch (error) {
+                            console.error(
+                                'Error parsing edit notification:',
+                                error,
+                            );
+                        }
+                    },
+                    { Authorization: `Bearer ${token}` },
+                );
+
+                // Subscription cho thông báo yêu cầu kết bạn
+                stompClient.subscribe(
+                    `/user/${userId}/queue/friendRequest`,
+                    (message) => {
+                        try {
+                            const parsedMessage = JSON.parse(message.body);
+                            console.log(
+                                'Friend request notification:',
+                                parsedMessage,
+                            );
+                            if (onFriendRequestCallback) {
+                                onFriendRequestCallback(parsedMessage);
+                            } else {
+                                console.warn(
+                                    'onFriendRequestCallback is not defined',
+                                );
+                            }
+                        } catch (error) {
+                            console.error(
+                                'Error parsing friend request notification:',
+                                error,
+                            );
+                        }
+                    },
+                    { Authorization: `Bearer ${token}` },
+                );
+
+                // Subscription cho thông báo thay đổi trạng thái online/offline
+                stompClient.subscribe(
+                    `/user/${userId}/queue/status`,
+                    (message) => {
+                        try {
+                            const parsedMessage = JSON.parse(message.body);
+                            console.log(
+                                'Status change notification:',
+                                parsedMessage,
+                            );
+                            if (onStatusChangeCallback) {
+                                onStatusChangeCallback(parsedMessage);
+                            } else {
+                                console.warn(
+                                    'onStatusChangeCallback is not defined',
+                                );
+                            }
+                        } catch (error) {
+                            console.error(
+                                'Error parsing status change notification:',
+                                error,
+                            );
+                        }
+                    },
+                    { Authorization: `Bearer ${token}` },
+                );
+
+                resolve();
+            } catch (error) {
+                console.error('Error in STOMP onConnect:', error);
+                reject(error);
+            }
         };
 
         stompClient.onStompError = (frame) => {
             console.error('STOMP error:', frame);
-            reject(new Error(`STOMP error: ${frame.body || frame.headers?.message || 'Unknown error'}`));
+            reject(
+                new Error(
+                    `STOMP error: ${
+                        frame.body || frame.headers?.message || 'Unknown error'
+                    }`,
+                ),
+            );
         };
 
         stompClient.onWebSocketClose = (event) => {
@@ -459,10 +634,17 @@ export function connectWebSocket(token, userId, onMessageCallback, onDeleteCallb
 
         stompClient.onWebSocketError = (error) => {
             console.error('SockJS error:', error);
-            reject(new Error(`SockJS error: ${error.message || 'Connection failed'}`));
+            reject(
+                new Error(
+                    `SockJS error: ${error.message || 'Connection failed'}`,
+                ),
+            );
         };
 
-        console.log('Connecting STOMP with token:', token.substring(0, 20) + '...');
+        console.log(
+            'Connecting STOMP with token:',
+            token.substring(0, 20) + '...',
+        );
         stompClient.activate();
     });
 }
@@ -491,7 +673,9 @@ export function sendMessage(destination, message, token) {
 // Hàm gửi tin nhắn nhóm
 export function sendGroupMessage(destination, message, token) {
     if (!stompClient || !stompClient.connected) {
-        console.error('Cannot send group message: STOMP client is not connected');
+        console.error(
+            'Cannot send group message: STOMP client is not connected',
+        );
         return false;
     }
 
@@ -554,7 +738,14 @@ export function deleteMessage(identifier, userId, token) {
 }
 
 // Hàm chuyển tiếp tin nhắn
-export function forwardMessage(identifier, userId, receiverId, groupId, content, token) {
+export function forwardMessage(
+    identifier,
+    userId,
+    receiverId,
+    groupId,
+    content,
+    token,
+) {
     if (!stompClient || !stompClient.connected) {
         console.error('Cannot forward message: STOMP client is not connected');
         return false;
@@ -566,14 +757,19 @@ export function forwardMessage(identifier, userId, receiverId, groupId, content,
             receiverId,
             groupId,
             content,
-            type: 'FORWARD'
+            type: 'FORWARD',
         };
         stompClient.publish({
             destination: '/app/chat.forward',
             body: JSON.stringify(message),
             headers: { Authorization: `Bearer ${token}` },
         });
-        console.log('Forwarded message:', identifier, 'to', receiverId || groupId);
+        console.log(
+            'Forwarded message:',
+            identifier,
+            'to',
+            receiverId || groupId,
+        );
         return true;
     } catch (error) {
         console.error('Error forwarding message:', error);
