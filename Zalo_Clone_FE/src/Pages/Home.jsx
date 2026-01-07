@@ -43,6 +43,9 @@ import SettingsPanel from '../components/Home/SettingsPanel';
 import ChatWindow from '../components/Home/ChatWindow';
 import ProfileModal from '../components/Home/ProfileModal';
 import UserSearchModal from '../components/Home/UserSearchModal';
+import IncomingCallModal from '../components/Home/IncomingCallModal';
+import VideoCallModal from '../components/Home/VideoCallModal';
+import PermissionGuideModal from '../components/Home/PermissionGuideModal';
 import {
     fetchUserProfile,
     fetchFriendsList,
@@ -55,9 +58,21 @@ import {
     getGroupChatHistory,
     connectWebSocket,
     disconnectWebSocket,
+    sendCallSignal,
 } from '../api/messageApi';
 import { createGroup, fetchUserGroups } from '../api/groupApi';
 import { zaloTheme } from '../theme/theme';
+import {
+    initializePeerConnection,
+    startCall,
+    createOffer,
+    createAnswer,
+    setRemoteDescription,
+    addIceCandidate,
+    endCall,
+    toggleAudio,
+    toggleVideo,
+} from '../services/webrtcService';
 
 // Error Boundary Component
 class ErrorBoundary extends Component {
@@ -146,6 +161,21 @@ const Home = () => {
     const [openChangePasswordModal, setOpenChangePasswordModal] =
         useState(false);
     const [groupAvatar, setGroupAvatar] = useState(null);
+
+    // Incoming call states
+    const [incomingCall, setIncomingCall] = useState(null);
+    const [showIncomingCallModal, setShowIncomingCallModal] = useState(false);
+
+    // Active call states
+    const [activeCall, setActiveCall] = useState(null);
+    const [callModalOpen, setCallModalOpen] = useState(false);
+    const [localStream, setLocalStream] = useState(null);
+    const [remoteStream, setRemoteStream] = useState(null);
+    const [isAudioEnabled, setIsAudioEnabled] = useState(true);
+    const [isVideoEnabled, setIsVideoEnabled] = useState(true);
+    const [callStatus, setCallStatus] = useState('');
+    const [showPermissionGuide, setShowPermissionGuide] = useState(false);
+    const [pendingCallAction, setPendingCallAction] = useState(null);
 
     // Đồng bộ token với localStorage
     useEffect(() => {
@@ -409,6 +439,76 @@ const Home = () => {
                                 : contact,
                         ),
                     );
+                },
+                (callSignal) => {
+                    if (!isMounted) return;
+                    console.log('Received call signal:', callSignal);
+
+                    // Handle different call signal types
+                    switch (callSignal.type) {
+                        case 'offer':
+                            // Incoming call
+                            const caller = contacts.find(
+                                (c) => c.id === callSignal.senderId,
+                            );
+                            setIncomingCall({
+                                ...callSignal,
+                                caller: caller || {
+                                    id: callSignal.senderId,
+                                    name: 'Unknown',
+                                },
+                            });
+                            setShowIncomingCallModal(true);
+                            break;
+
+                        case 'answer':
+                            // Peer accepted call
+                            if (activeCall) {
+                                setRemoteDescription(callSignal.data.answer)
+                                    .then(() => setCallStatus('Đã kết nối'))
+                                    .catch((err) =>
+                                        console.error(
+                                            'Error setting remote description:',
+                                            err,
+                                        ),
+                                    );
+                            }
+                            break;
+
+                        case 'ice-candidate':
+                            // Add ICE candidate
+                            if (activeCall || callModalOpen) {
+                                addIceCandidate(callSignal.data).catch((err) =>
+                                    console.error(
+                                        'Error adding ICE candidate:',
+                                        err,
+                                    ),
+                                );
+                            }
+                            break;
+
+                        case 'call-end':
+                            // Peer ended call
+                            handleEndCall();
+                            setSnackbarMessage('Cuộc gọi đã kết thúc');
+                            setSnackbarSeverity('info');
+                            setOpenSnackbar(true);
+                            break;
+
+                        case 'call-reject':
+                            // Peer rejected call
+                            handleEndCall();
+                            setSnackbarMessage('Cuộc gọi bị từ chối');
+                            setSnackbarSeverity('warning');
+                            setOpenSnackbar(true);
+                            break;
+
+                        default:
+                            console.warn(
+                                'Unknown call signal type:',
+                                callSignal.type,
+                            );
+                    }
                 },
             )
                 .then(() => {
@@ -707,6 +807,112 @@ const Home = () => {
 
     const handleMenuClose = () => {
         setAnchorEl(null);
+    };
+
+    // Call handlers
+    const handleAcceptCall = async () => {
+        if (!incomingCall) return;
+
+        try {
+            setShowIncomingCallModal(false);
+            setCallStatus('Đang kết nối...');
+            setCallModalOpen(true);
+            setActiveCall({
+                ...incomingCall,
+                isVideoCall: incomingCall.data?.isVideoCall || false,
+            });
+
+            // Initialize peer connection
+            initializePeerConnection(
+                (candidate) => {
+                    sendCallSignal(
+                        'ice-candidate',
+                        candidate,
+                        incomingCall.senderId,
+                        token,
+                    );
+                },
+                (stream) => {
+                    setRemoteStream(stream);
+                    setCallStatus('Đã kết nối');
+                },
+            );
+
+            // Get local media
+            const stream = await startCall(
+                incomingCall.data?.isVideoCall || false,
+            );
+            setLocalStream(stream);
+
+            // Set remote offer and create answer
+            await setRemoteDescription(incomingCall.data.offer);
+            const answer = await createAnswer();
+            sendCallSignal('answer', { answer }, incomingCall.senderId, token);
+
+            setCallStatus('Đã kết nối');
+            setIncomingCall(null);
+        } catch (error) {
+            console.error('Error accepting call:', error);
+
+            // Check if it's a permission error
+            if (error.message.includes('quyền truy cập')) {
+                setShowPermissionGuide(true);
+                setPendingCallAction(() => handleAcceptCall);
+            } else {
+                setSnackbarMessage(
+                    'Không thể chấp nhận cuộc gọi: ' + error.message,
+                );
+                setSnackbarSeverity('error');
+                setOpenSnackbar(true);
+            }
+            handleEndCall();
+        }
+    };
+
+    const handleRejectCall = () => {
+        if (incomingCall) {
+            sendCallSignal('call-reject', {}, incomingCall.senderId, token);
+            setIncomingCall(null);
+            setShowIncomingCallModal(false);
+        }
+    };
+
+    const handleEndCall = () => {
+        endCall();
+        setCallModalOpen(false);
+        setLocalStream(null);
+        setRemoteStream(null);
+        setCallStatus('');
+        setActiveCall(null);
+        setIsAudioEnabled(true);
+        setIsVideoEnabled(true);
+
+        if (activeCall) {
+            sendCallSignal(
+                'call-end',
+                {},
+                activeCall.senderId || activeCall.receiverId,
+                token,
+            );
+        }
+    };
+
+    const handleToggleAudio = () => {
+        const enabled = toggleAudio();
+        setIsAudioEnabled(enabled);
+    };
+
+    const handleToggleVideo = () => {
+        const enabled = toggleVideo();
+        setIsVideoEnabled(enabled);
+    };
+
+    const handleRetryPermission = () => {
+        setShowPermissionGuide(false);
+        if (pendingCallAction) {
+            pendingCallAction();
+            setPendingCallAction(null);
+        }
     };
 
     const handleLogout = useCallback(() => {
@@ -1297,6 +1503,40 @@ const Home = () => {
                             </Button>
                         </DialogActions>
                     </Dialog>
+
+                    {/* Incoming Call Modal */}
+                    <IncomingCallModal
+                        open={showIncomingCallModal}
+                        caller={incomingCall?.caller}
+                        isVideoCall={incomingCall?.data?.isVideoCall || false}
+                        onAccept={handleAcceptCall}
+                        onReject={handleRejectCall}
+                    />
+
+                    {/* Active Call Modal */}
+                    <VideoCallModal
+                        open={callModalOpen}
+                        contact={activeCall?.caller || selectedContact}
+                        isVideoCall={activeCall?.isVideoCall || false}
+                        localStream={localStream}
+                        remoteStream={remoteStream}
+                        onToggleAudio={handleToggleAudio}
+                        onToggleVideo={handleToggleVideo}
+                        isAudioEnabled={isAudioEnabled}
+                        isVideoEnabled={isVideoEnabled}
+                        callStatus={callStatus}
+                        onClose={handleEndCall}
+                    />
+
+                    {/* Permission Guide Modal */}
+                    <PermissionGuideModal
+                        open={showPermissionGuide}
+                        onClose={() => {
+                            setShowPermissionGuide(false);
+                            setPendingCallAction(null);
+                        }}
+                        onRetry={handleRetryPermission}
+                    />
                 </RootContainer>
             </ThemeProvider>
         </ErrorBoundary>

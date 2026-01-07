@@ -51,13 +51,26 @@ import {
     unpinMessage,
     getPinnedMessages,
     editMessage,
+    sendCallSignal,
 } from '../../api/messageApi';
 import { fetchGroupMembers } from '../../api/groupApi';
 import SearchMessages from '../../components/SearchMessages';
 import FriendModal from './FriendModal';
+import VideoCallModal from './VideoCallModal';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { getLastSeenText } from '../../utils/timeUtils';
+import {
+    initializePeerConnection,
+    startCall,
+    createOffer,
+    createAnswer,
+    setRemoteDescription,
+    addIceCandidate,
+    endCall,
+    toggleAudio,
+    toggleVideo,
+} from '../../services/webrtcService';
 
 const ChatContainer = styled(Box)(({ theme }) => ({
     flex: 1,
@@ -127,6 +140,16 @@ const ChatWindow = ({
     const messageInputRef = useRef(null);
     const [currentTime, setCurrentTime] = useState(new Date());
     const open = Boolean(anchorEl);
+
+    // Video call states
+    const [callModalOpen, setCallModalOpen] = useState(false);
+    const [isVideoCall, setIsVideoCall] = useState(false);
+    const [localStream, setLocalStream] = useState(null);
+    const [remoteStream, setRemoteStream] = useState(null);
+    const [isAudioEnabled, setIsAudioEnabled] = useState(true);
+    const [isVideoEnabled, setIsVideoEnabled] = useState(true);
+    const [callStatus, setCallStatus] = useState('');
+    const [isInitiator, setIsInitiator] = useState(false);
 
     // Cập nhật thời gian mỗi phút để hiển thị "last seen" realtime
     useEffect(() => {
@@ -278,6 +301,92 @@ const ChatWindow = ({
         if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
+    };
+
+    // Voice/Video Call Handlers
+    const handleStartCall = async (withVideo = false) => {
+        if (selectedContact?.isGroup) {
+            toast.error('Không thể gọi cho nhóm');
+            return;
+        }
+
+        try {
+            setIsVideoCall(withVideo);
+            setIsInitiator(true);
+            setCallStatus('Đang kết nối...');
+            setCallModalOpen(true);
+
+            // Initialize peer connection
+            initializePeerConnection(
+                (candidate) => {
+                    // Send ICE candidate to peer
+                    sendCallSignal(
+                        'ice-candidate',
+                        candidate,
+                        selectedContact.id,
+                        token,
+                    );
+                },
+                (stream) => {
+                    // Receive remote stream
+                    setRemoteStream(stream);
+                    setCallStatus('Đang gọi...');
+                },
+            );
+
+            // Get local media stream
+            const stream = await startCall(withVideo);
+            setLocalStream(stream);
+
+            // Create and send offer
+            const offer = await createOffer();
+            sendCallSignal(
+                'offer',
+                { offer, isVideoCall: withVideo },
+                selectedContact.id,
+                token,
+            );
+
+            setCallStatus('Đang đổ chuông...');
+        } catch (error) {
+            console.error('Error starting call:', error);
+
+            // Show specific error message for permissions
+            if (error.message.includes('quyền truy cập')) {
+                toast.error(
+                    'Vui lòng cho phép quyền microphone/camera! Click vào icon 🔒 bên cạnh URL và bật quyền.',
+                    { autoClose: 8000 },
+                );
+            } else {
+                toast.error('Không thể bắt đầu cuộc gọi: ' + error.message);
+            }
+            handleEndCall();
+        }
+    };
+
+    const handleEndCall = () => {
+        endCall();
+        setCallModalOpen(false);
+        setLocalStream(null);
+        setRemoteStream(null);
+        setCallStatus('');
+        setIsInitiator(false);
+        setIsAudioEnabled(true);
+        setIsVideoEnabled(true);
+
+        if (isInitiator) {
+            sendCallSignal('call-end', {}, selectedContact.id, token);
+        }
+    };
+
+    const handleToggleAudio = () => {
+        const enabled = toggleAudio();
+        setIsAudioEnabled(enabled);
+    };
+
+    const handleToggleVideo = () => {
+        const enabled = toggleVideo();
+        setIsVideoEnabled(enabled);
     };
 
     const handleFileUpload = async (event) => {
@@ -738,12 +847,24 @@ const ChatWindow = ({
                         >
                             <BiPin size={22} />
                         </IconButton>
-                        <IconButton sx={{ color: '#666' }}>
-                            <BiPhone size={22} />
-                        </IconButton>
-                        <IconButton sx={{ color: '#666' }}>
-                            <BiVideo size={22} />
-                        </IconButton>
+                        {!selectedContact?.isGroup && (
+                            <>
+                                <IconButton
+                                    onClick={() => handleStartCall(false)}
+                                    sx={{ color: '#666' }}
+                                    title="Gọi thoại"
+                                >
+                                    <BiPhone size={22} />
+                                </IconButton>
+                                <IconButton
+                                    onClick={() => handleStartCall(true)}
+                                    sx={{ color: '#666' }}
+                                    title="Gọi video"
+                                >
+                                    <BiVideo size={22} />
+                                </IconButton>
+                            </>
+                        )}
                         <IconButton sx={{ color: '#666' }}>
                             <BiDotsVerticalRounded size={22} />
                         </IconButton>
@@ -1360,6 +1481,20 @@ const ChatWindow = ({
                 token={token}
                 contacts={contacts}
                 onContactSelect={onSendMessage}
+            />
+
+            <VideoCallModal
+                open={callModalOpen}
+                onClose={handleEndCall}
+                contact={selectedContact}
+                isVideoCall={isVideoCall}
+                localStream={localStream}
+                remoteStream={remoteStream}
+                onToggleAudio={handleToggleAudio}
+                onToggleVideo={handleToggleVideo}
+                isAudioEnabled={isAudioEnabled}
+                isVideoEnabled={isVideoEnabled}
+                callStatus={callStatus}
             />
 
             <ToastContainer position="bottom-right" autoClose={3000} />

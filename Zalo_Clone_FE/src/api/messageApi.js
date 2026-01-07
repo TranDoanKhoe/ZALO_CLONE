@@ -275,6 +275,7 @@ export function connectWebSocket(
     onFriendRequestCallback,
     onEditCallback,
     onStatusChangeCallback,
+    onCallSignalCallback,
 ) {
     return new Promise((resolve, reject) => {
         if (!token) {
@@ -314,9 +315,17 @@ export function connectWebSocket(
         stompClient.onConnect = (frame) => {
             console.log('STOMP connected:', frame);
 
+            // Store reference to avoid null issues
+            const client = stompClient;
+            if (!client) {
+                console.error('STOMP client is null in onConnect');
+                reject(new Error('STOMP client became null'));
+                return;
+            }
+
             try {
                 // Subscription cho tin nhắn 1-1
-                stompClient.subscribe(
+                client.subscribe(
                     `/user/${userId}/queue/messages`,
                     (message) => {
                         try {
@@ -367,7 +376,7 @@ export function connectWebSocket(
                 // Subscription cho tin nhắn nhóm
                 groupIds.forEach((groupId) => {
                     if (groupId) {
-                        stompClient.subscribe(
+                        client.subscribe(
                             `/topic/group/${groupId}`,
                             (message) => {
                                 try {
@@ -434,7 +443,7 @@ export function connectWebSocket(
                 });
 
                 // Subscription cho thông báo xóa
-                stompClient.subscribe(
+                client.subscribe(
                     `/user/${userId}/queue/delete`,
                     (message) => {
                         try {
@@ -456,7 +465,7 @@ export function connectWebSocket(
                 );
 
                 // Subscription cho thông báo thu hồi
-                stompClient.subscribe(
+                client.subscribe(
                     `/user/${userId}/queue/recall`,
                     (message) => {
                         try {
@@ -478,7 +487,7 @@ export function connectWebSocket(
                 );
 
                 // Subscription cho thông báo ghim tin nhắn
-                stompClient.subscribe(
+                client.subscribe(
                     `/user/${userId}/queue/pin`,
                     (message) => {
                         try {
@@ -504,7 +513,7 @@ export function connectWebSocket(
                 );
 
                 // Subscription cho thông báo bỏ ghim tin nhắn
-                stompClient.subscribe(
+                client.subscribe(
                     `/user/${userId}/queue/unpin`,
                     (message) => {
                         try {
@@ -530,7 +539,7 @@ export function connectWebSocket(
                 );
 
                 // Subscription cho thông báo chỉnh sửa tin nhắn
-                stompClient.subscribe(
+                client.subscribe(
                     `/user/${userId}/queue/edit`,
                     (message) => {
                         try {
@@ -556,7 +565,7 @@ export function connectWebSocket(
                 );
 
                 // Subscription cho thông báo yêu cầu kết bạn
-                stompClient.subscribe(
+                client.subscribe(
                     `/user/${userId}/queue/friendRequest`,
                     (message) => {
                         try {
@@ -583,7 +592,7 @@ export function connectWebSocket(
                 );
 
                 // Subscription cho thông báo thay đổi trạng thái online/offline
-                stompClient.subscribe(
+                client.subscribe(
                     `/user/${userId}/queue/status`,
                     (message) => {
                         try {
@@ -602,6 +611,33 @@ export function connectWebSocket(
                         } catch (error) {
                             console.error(
                                 'Error parsing status change notification:',
+                                error,
+                            );
+                        }
+                    },
+                    { Authorization: `Bearer ${token}` },
+                );
+
+                // Subscription cho WebRTC signaling (call/video call)
+                client.subscribe(
+                    `/user/${userId}/queue/call`,
+                    (message) => {
+                        try {
+                            const parsedMessage = JSON.parse(message.body);
+                            console.log(
+                                'Call signal notification:',
+                                parsedMessage,
+                            );
+                            if (onCallSignalCallback) {
+                                onCallSignalCallback(parsedMessage);
+                            } else {
+                                console.warn(
+                                    'onCallSignalCallback is not defined',
+                                );
+                            }
+                        } catch (error) {
+                            console.error(
+                                'Error parsing call signal notification:',
                                 error,
                             );
                         }
@@ -785,5 +821,34 @@ export function disconnectWebSocket() {
         stompClient = null;
     } else {
         console.log('No active STOMP connection to disconnect');
+    }
+}
+
+// Hàm gửi WebRTC signaling cho voice/video call
+export function sendCallSignal(signalType, data, receiverId, token) {
+    if (!stompClient || !stompClient.connected) {
+        console.error('Cannot send call signal: STOMP client is not connected');
+        return false;
+    }
+
+    try {
+        const signal = {
+            type: signalType, // 'offer', 'answer', 'ice-candidate', 'call-start', 'call-end', 'call-reject'
+            data,
+            receiverId,
+            timestamp: new Date().toISOString(),
+        };
+
+        stompClient.publish({
+            destination: '/app/call.signal',
+            body: JSON.stringify(signal),
+            headers: { Authorization: `Bearer ${token}` },
+        });
+
+        console.log('Sent call signal:', signalType, 'to', receiverId);
+        return true;
+    } catch (error) {
+        console.error('Error sending call signal:', error);
+        return false;
     }
 }
