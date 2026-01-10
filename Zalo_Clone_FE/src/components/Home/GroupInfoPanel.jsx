@@ -20,6 +20,9 @@ import {
     Button,
     TextField,
     Checkbox,
+    Radio,
+    RadioGroup,
+    FormControlLabel,
 } from '@mui/material';
 import {
     BiX,
@@ -102,6 +105,8 @@ const GroupInfoPanel = ({
     contacts = [],
     onAddMembers,
     onUpdateGroupInfo,
+    onPinConversation,
+    onMuteConversation,
 }) => {
     const [expandedSections, setExpandedSections] = useState({
         members: true,
@@ -119,6 +124,12 @@ const GroupInfoPanel = ({
     const [editNameOpen, setEditNameOpen] = useState(false);
     const [newGroupName, setNewGroupName] = useState('');
     const [newGroupAvatar, setNewGroupAvatar] = useState(null);
+    const [isPinned, setIsPinned] = useState(
+        selectedContact?.isPinned || false,
+    );
+    const [isMuted, setIsMuted] = useState(selectedContact?.isMuted || false);
+    const [muteDialogOpen, setMuteDialogOpen] = useState(false);
+    const [selectedMuteOption, setSelectedMuteOption] = useState('1hour');
 
     // Lọc ảnh và video
     const mediaMessages = messages.filter(
@@ -226,6 +237,42 @@ const GroupInfoPanel = ({
         reader.readAsDataURL(file);
     };
 
+    const handleTogglePin = async () => {
+        if (onPinConversation) {
+            await onPinConversation(selectedContact.id, !isPinned);
+            setIsPinned(!isPinned);
+        }
+    };
+
+    const handleToggleMute = async () => {
+        if (isMuted) {
+            // Nếu đang mắt, bật lại ngay
+            if (onMuteConversation) {
+                await onMuteConversation(selectedContact.id, false, null);
+                setIsMuted(false);
+            }
+        } else {
+            // Nếu chưa mắt, mở dialog chọn thời gian
+            setMuteDialogOpen(true);
+        }
+    };
+
+    const handleCloseMuteDialog = () => {
+        setMuteDialogOpen(false);
+    };
+
+    const handleConfirmMute = async () => {
+        if (onMuteConversation) {
+            await onMuteConversation(
+                selectedContact.id,
+                true,
+                selectedMuteOption,
+            );
+            setIsMuted(true);
+        }
+        setMuteDialogOpen(false);
+    };
+
     return (
         <PanelContainer>
             {/* Header */}
@@ -299,11 +346,20 @@ const GroupInfoPanel = ({
                             alignItems: 'center',
                             cursor: 'pointer',
                         }}
+                        onClick={handleToggleMute}
                     >
                         <IconButton>
-                            <BiBell size={24} />
+                            <BiBell
+                                size={24}
+                                color={isMuted ? '#999' : '#000'}
+                            />
                         </IconButton>
-                        <Typography variant="caption">Tắt thông báo</Typography>
+                        <Typography
+                            variant="caption"
+                            sx={{ color: isMuted ? '#999' : '#000' }}
+                        >
+                            {isMuted ? 'Đã tắt thông báo' : 'Tắt thông báo'}
+                        </Typography>
                     </Box>
                     <Box
                         sx={{
@@ -312,12 +368,19 @@ const GroupInfoPanel = ({
                             alignItems: 'center',
                             cursor: 'pointer',
                         }}
+                        onClick={handleTogglePin}
                     >
                         <IconButton>
-                            <BiPin size={24} />
+                            <BiPin
+                                size={24}
+                                color={isPinned ? '#0091ff' : '#000'}
+                            />
                         </IconButton>
-                        <Typography variant="caption">
-                            Ghim hội thoại
+                        <Typography
+                            variant="caption"
+                            sx={{ color: isPinned ? '#0091ff' : '#000' }}
+                        >
+                            {isPinned ? 'Đã ghim' : 'Ghim hội thoại'}
                         </Typography>
                     </Box>
                     <Box
@@ -1027,6 +1090,52 @@ const GroupInfoPanel = ({
                         }}
                     >
                         Thêm thành viên
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Dialog tắt thông báo */}
+            <Dialog
+                open={muteDialogOpen}
+                onClose={handleCloseMuteDialog}
+                maxWidth="xs"
+                fullWidth
+            >
+                <DialogTitle>Xác nhận</DialogTitle>
+                <DialogContent>
+                    <Typography sx={{ mb: 2 }}>
+                        Bạn có chắc muốn tắt thông báo hội thoại này:
+                    </Typography>
+                    <RadioGroup
+                        value={selectedMuteOption}
+                        onChange={(e) => setSelectedMuteOption(e.target.value)}
+                    >
+                        <FormControlLabel
+                            value="1hour"
+                            control={<Radio />}
+                            label="Trong 1 giờ"
+                        />
+                        <FormControlLabel
+                            value="4hours"
+                            control={<Radio />}
+                            label="Trong 4 giờ"
+                        />
+                        <FormControlLabel
+                            value="until8am"
+                            control={<Radio />}
+                            label="Cho đến 8:00 AM"
+                        />
+                        <FormControlLabel
+                            value="forever"
+                            control={<Radio />}
+                            label="Cho đến khi được mở lại"
+                        />
+                    </RadioGroup>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseMuteDialog}>Hủy</Button>
+                    <Button onClick={handleConfirmMute} variant="contained">
+                        Đồng ý
                     </Button>
                 </DialogActions>
             </Dialog>

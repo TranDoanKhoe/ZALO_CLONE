@@ -1275,6 +1275,14 @@ const Home = () => {
         handleMenuClose();
     };
 
+    const handleUpdateContact = (contactId, updates) => {
+        setContacts((prevContacts) =>
+            prevContacts.map((contact) =>
+                contact.id === contactId ? { ...contact, ...updates } : contact,
+            ),
+        );
+    };
+
     const chatWindowProps = useMemo(
         () => ({
             selectedContact,
@@ -1286,6 +1294,7 @@ const Home = () => {
             userId,
             contacts,
             token,
+            onUpdateContact: handleUpdateContact,
         }),
         [
             selectedContact,
@@ -1326,6 +1335,15 @@ const Home = () => {
                     contact.phone?.includes(headerSearchQuery),
             );
         }
+
+        // Sắp xếp: Hội thoại đã ghim lên đầu
+        filtered.sort((a, b) => {
+            // Ghim lên đầu
+            if (a.isPinned && !b.isPinned) return -1;
+            if (!a.isPinned && b.isPinned) return 1;
+            // Nếu cùng trạng thái ghim, giữ nguyên thứ tự hiện tại
+            return 0;
+        });
 
         console.log('Message tab:', messageTab);
         console.log('Search query:', headerSearchQuery);

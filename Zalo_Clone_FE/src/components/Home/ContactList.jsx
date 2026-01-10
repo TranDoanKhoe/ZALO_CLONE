@@ -10,7 +10,7 @@ import {
     Button,
     Box,
 } from '@mui/material';
-import { BiGroup } from 'react-icons/bi';
+import { BiGroup, BiBell, BiPin } from 'react-icons/bi';
 import { cancelFriendRequest } from '../../api/user';
 import ProfileModal from './ProfileModal';
 import { toast } from 'react-toastify';
@@ -197,20 +197,49 @@ const ContactList = ({
 
                         <ListItemText
                             primary={
-                                contact.isGroup
-                                    ? `[Nhóm] ${contact.name}`
-                                    : `${contact.username}`
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 0.5,
+                                    }}
+                                >
+                                    {contact.isPinned && (
+                                        <BiPin size={16} color="#0091ff" />
+                                    )}
+                                    <Typography
+                                        component="span"
+                                        variant="body1"
+                                        sx={{
+                                            fontSize: '1rem',
+                                            fontWeight:
+                                                contact.unreadCount > 0
+                                                    ? '700'
+                                                    : '500',
+                                        }}
+                                    >
+                                        {contact.isGroup
+                                            ? `[Nhóm] ${contact.name}`
+                                            : `${contact.username}`}
+                                    </Typography>
+                                    {contact.isMuted && (
+                                        <BiBell
+                                            size={16}
+                                            color="#999"
+                                            style={{ opacity: 0.6 }}
+                                        />
+                                    )}
+                                </Box>
                             }
                             secondary={
                                 contact.lastMessage || 'Chưa có tin nhắn'
                             }
                             sx={{ ml: 2 }}
                             primaryTypographyProps={{
+                                component: 'div',
                                 variant: 'body1',
                                 sx: {
                                     fontSize: '1rem',
-                                    fontWeight:
-                                        contact.unreadCount > 0 ? '700' : '500',
                                     mb: 0.5,
                                 },
                             }}

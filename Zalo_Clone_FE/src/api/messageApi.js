@@ -858,8 +858,8 @@ export function disconnectWebSocket() {
 // Hàm đánh dấu tin nhắn đã đọc
 export function readMessage(messageId, senderId, receiverId, token) {
     if (!stompClient || !stompClient.connected) {
-        console.error(
-            'Cannot mark message as read: STOMP client is not connected',
+        console.warn(
+            'Cannot mark message as read: STOMP client is not connected yet. Message will be marked as read later.',
         );
         return false;
     }

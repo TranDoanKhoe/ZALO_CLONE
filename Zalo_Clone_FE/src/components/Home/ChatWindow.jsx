@@ -124,6 +124,7 @@ const ChatWindow = ({
     userId,
     contacts,
     token,
+    onUpdateContact,
 }) => {
     const [localMessages, setLocalMessages] = useState(messages);
     const [isSending, setIsSending] = useState(false);
@@ -221,7 +222,7 @@ const ChatWindow = ({
     useEffect(() => {
         if (!selectedContact || selectedContact.isGroup || !token) return;
 
-        // Đợi một chút để đảm bảo WebSocket đã kết nối
+        // Đợi lâu hơn để đảm bảo WebSocket đã kết nối
         const timer = setTimeout(() => {
             // Chỉ đánh dấu tin nhắn chưa đọc khi mở chat lần đầu
             const unreadMessages = localMessages.filter(
@@ -2177,6 +2178,78 @@ const ChatWindow = ({
                                 );
                             }
                         }}
+                        onPinConversation={async (contactId, isPinned) => {
+                            try {
+                                // TODO: Call API to pin/unpin conversation
+                                console.log(
+                                    'Pin conversation:',
+                                    contactId,
+                                    isPinned,
+                                );
+
+                                // Cập nhật contact trong danh sách
+                                if (onUpdateContact) {
+                                    onUpdateContact(contactId, { isPinned });
+                                }
+
+                                toast.success(
+                                    isPinned
+                                        ? 'Đã ghim hội thoại'
+                                        : 'Đã bỏ ghim hội thoại',
+                                );
+                            } catch (error) {
+                                console.error(
+                                    'Error pinning conversation:',
+                                    error,
+                                );
+                                toast.error('Lỗi ghim hội thoại');
+                            }
+                        }}
+                        onMuteConversation={async (
+                            contactId,
+                            isMuted,
+                            muteOption,
+                        ) => {
+                            try {
+                                // TODO: Call API to mute/unmute conversation
+                                console.log(
+                                    'Mute conversation:',
+                                    contactId,
+                                    isMuted,
+                                    muteOption,
+                                );
+
+                                // Cập nhật contact trong danh sách
+                                if (onUpdateContact) {
+                                    onUpdateContact(contactId, {
+                                        isMuted,
+                                        muteOption,
+                                    });
+                                }
+
+                                if (isMuted) {
+                                    const muteLabels = {
+                                        '1hour': '1 giờ',
+                                        '4hours': '4 giờ',
+                                        until8am: 'đến 8:00 AM',
+                                        forever: 'vĩnh viễn',
+                                    };
+                                    toast.success(
+                                        `Đã tắt thông báo trong ${
+                                            muteLabels[muteOption] || ''
+                                        }`,
+                                    );
+                                } else {
+                                    toast.success('Đã bật thông báo');
+                                }
+                            } catch (error) {
+                                console.error(
+                                    'Error muting conversation:',
+                                    error,
+                                );
+                                toast.error('Lỗi tắt thông báo');
+                            }
+                        }}
                     />
                 ) : (
                     <PersonalChatInfoPanel
@@ -2204,6 +2277,78 @@ const ChatWindow = ({
                             } catch (error) {
                                 console.error('Error creating group:', error);
                                 toast.error('Lỗi tạo nhóm: ' + error.message);
+                            }
+                        }}
+                        onPinConversation={async (contactId, isPinned) => {
+                            try {
+                                // TODO: Call API to pin/unpin conversation
+                                console.log(
+                                    'Pin conversation:',
+                                    contactId,
+                                    isPinned,
+                                );
+
+                                // Cập nhật contact trong danh sách
+                                if (onUpdateContact) {
+                                    onUpdateContact(contactId, { isPinned });
+                                }
+
+                                toast.success(
+                                    isPinned
+                                        ? 'Đã ghim hội thoại'
+                                        : 'Đã bỏ ghim hội thoại',
+                                );
+                            } catch (error) {
+                                console.error(
+                                    'Error pinning conversation:',
+                                    error,
+                                );
+                                toast.error('Lỗi ghim hội thoại');
+                            }
+                        }}
+                        onMuteConversation={async (
+                            contactId,
+                            isMuted,
+                            muteOption,
+                        ) => {
+                            try {
+                                // TODO: Call API to mute/unmute conversation
+                                console.log(
+                                    'Mute conversation:',
+                                    contactId,
+                                    isMuted,
+                                    muteOption,
+                                );
+
+                                // Cập nhật contact trong danh sách
+                                if (onUpdateContact) {
+                                    onUpdateContact(contactId, {
+                                        isMuted,
+                                        muteOption,
+                                    });
+                                }
+
+                                if (isMuted) {
+                                    const muteLabels = {
+                                        '1hour': '1 giờ',
+                                        '4hours': '4 giờ',
+                                        until8am: 'đến 8:00 AM',
+                                        forever: 'vĩnh viễn',
+                                    };
+                                    toast.success(
+                                        `Đã tắt thông báo trong ${
+                                            muteLabels[muteOption] || ''
+                                        }`,
+                                    );
+                                } else {
+                                    toast.success('Đã bật thông báo');
+                                }
+                            } catch (error) {
+                                console.error(
+                                    'Error muting conversation:',
+                                    error,
+                                );
+                                toast.error('Lỗi tắt thông báo');
                             }
                         }}
                     />
