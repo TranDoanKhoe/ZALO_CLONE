@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import {
     Box,
     Avatar,
@@ -132,6 +132,7 @@ const ChatWindow = ({
     const [pinnedMessagesDialogOpen, setPinnedMessagesDialogOpen] =
         useState(false);
     const [pinnedMessages, setPinnedMessages] = useState([]);
+    const [syncedPinnedIds, setSyncedPinnedIds] = useState(new Set());
     const [messageToForward, setMessageToForward] = useState(null);
     const [messageToEdit, setMessageToEdit] = useState(null);
     const [editContent, setEditContent] = useState('');
@@ -196,14 +197,22 @@ const ChatWindow = ({
     };
 
     useEffect(() => {
-        const uniqueMessages = messages.reduce((acc, msg) => {
-            if (!acc.some((item) => item.id === msg.id)) {
-                acc.push(msg);
-            }
-            return acc;
-        }, []);
-        setLocalMessages(uniqueMessages);
-    }, [messages]);
+        // Deduplicate by id but always take the latest version (to keep refreshed flags like isPinned/isRead)
+        const mapById = new Map();
+        messages.forEach((msg) => {
+            mapById.set(msg.id || msg.tempKey || `${msg.createAt}-${msg.senderId}`, msg);
+        });
+        setLocalMessages((prev) => {
+            const merged = Array.from(mapById.values()).map((msg) => {
+                // Preserve local pinned state if backend list already marked it pinned
+                if (syncedPinnedIds.has(msg.id)) {
+                    return { ...msg, isPinned: true };
+                }
+                return msg;
+            });
+            return merged;
+        });
+    }, [messages, syncedPinnedIds]);
 
     // Tách riêng useEffect để đánh dấu tin nhắn đã đọc
     useEffect(() => {
@@ -348,6 +357,7 @@ const ChatWindow = ({
 
             console.log('✅ Filtered pinned messages:', filteredPinned);
             setPinnedMessages(filteredPinned);
+            setSyncedPinnedIds(new Set(filteredPinned.map((m) => m.id)));
             setPinnedMessagesDialogOpen(true);
         } catch (error) {
             console.error('Error fetching pinned messages:', error);
@@ -882,6 +892,74 @@ const ChatWindow = ({
         }
     };
 
+    const getMessagePreview = (msg) => {
+        if (!msg) return '';
+        switch (msg.type) {
+            case 'TEXT':
+                return msg.content || '';
+            case 'IMAGE':
+                return '[Hình ảnh]';
+            case 'VIDEO':
+                return '[Video]';
+            case 'AUDIO':
+                return '[Âm thanh]';
+            case 'FILE':
+                return msg.fileName || '[Tệp đính kèm]';
+            default:
+                return '[Tin nhắn]';
+        }
+    };
+
+    const pinnedHighlight = useMemo(() => {
+        const pinned = localMessages.filter((m) => m.isPinned);
+        if (!pinned.length) return null;
+
+        return pinned.reduce((latest, msg) => {
+            const latestTime = new Date(
+                latest.createAt || latest.createdAt || 0,
+            ).getTime();
+            const msgTime = new Date(
+                msg.createAt || msg.createdAt || 0,
+            ).getTime();
+            return msgTime >= latestTime ? msg : latest;
+        }, pinned[0]);
+    }, [localMessages]);
+
+    useEffect(() => {
+        if (!selectedContact || !token) {
+            setSyncedPinnedIds(new Set());
+            return;
+        }
+
+        let cancelled = false;
+        (async () => {
+            try {
+                const pinned = await getPinnedMessages(
+                    selectedContact.isGroup ? null : selectedContact.id,
+                    selectedContact.isGroup ? selectedContact.id : null,
+                    token,
+                );
+
+                if (cancelled) return;
+
+                const ids = new Set((pinned || []).map((m) => m.id));
+                setSyncedPinnedIds(ids);
+                setPinnedMessages(pinned || []);
+                setLocalMessages((prev) =>
+                    prev.map((msg) =>
+                        ids.has(msg.id) ? { ...msg, isPinned: true } : msg,
+                    ),
+                );
+            } catch (error) {
+                console.error('Error syncing pinned messages:', error);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [selectedContact?.id, selectedContact?.isGroup, token]);
+
     if (!selectedContact) {
         return (
             <Box
@@ -1028,6 +1106,61 @@ const ChatWindow = ({
                         </>
                     )}
                 </Box>
+
+                {pinnedHighlight && (
+                    <Box
+                        onClick={() => handleSelectMessage(pinnedHighlight)}
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1.5,
+                            px: 2,
+                            py: 1,
+                            backgroundColor: '#fff6e6',
+                            borderBottom: '1px solid #ffd599',
+                            cursor: 'pointer',
+                        }}
+                    >
+                        <BiPin color="#b56c00" size={18} />
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography
+                                variant="caption"
+                                sx={{
+                                    color: '#b56c00',
+                                    fontWeight: 700,
+                                    letterSpacing: 0.1,
+                                }}
+                            >
+                                Tin nhắn đã ghim
+                            </Typography>
+                            <Typography
+                                variant="body2"
+                                sx={{ color: '#8a5a00' }}
+                                noWrap
+                                title={getMessagePreview(pinnedHighlight)}
+                            >
+                                {getMessagePreview(pinnedHighlight)}
+                            </Typography>
+                        </Box>
+                        <Button
+                            size="small"
+                            variant="text"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleShowPinnedMessages();
+                            }}
+                            sx={{
+                                textTransform: 'none',
+                                color: '#b56c00',
+                                fontWeight: 600,
+                                minWidth: 0,
+                                px: 1,
+                            }}
+                        >
+                            Xem tất cả
+                        </Button>
+                    </Box>
+                )}
 
                 {showSearchBar && (
                     <SearchMessages
