@@ -284,6 +284,7 @@ export function connectWebSocket(
     onEditCallback,
     onStatusChangeCallback,
     onCallSignalCallback,
+    onReadCallback,
 ) {
     return new Promise((resolve, reject) => {
         if (!token) {
@@ -648,6 +649,31 @@ export function connectWebSocket(
                     { Authorization: `Bearer ${token}` },
                 );
 
+                // Subscription cho thông báo tin nhắn đã đọc
+                client.subscribe(
+                    `/user/${userId}/queue/read`,
+                    (message) => {
+                        try {
+                            const parsedMessage = JSON.parse(message.body);
+                            console.log(
+                                '✅ Read receipt received:',
+                                parsedMessage,
+                            );
+                            if (onReadCallback) {
+                                onReadCallback(parsedMessage);
+                            } else {
+                                console.warn('onReadCallback is not defined');
+                            }
+                        } catch (error) {
+                            console.error(
+                                'Error parsing read notification:',
+                                error,
+                            );
+                        }
+                    },
+                    { Authorization: `Bearer ${token}` },
+                );
+
                 resolve();
             } catch (error) {
                 console.error('Error in STOMP onConnect:', error);
@@ -825,6 +851,34 @@ export function disconnectWebSocket() {
         stompClient = null;
     } else {
         console.log('No active STOMP connection to disconnect');
+    }
+}
+
+// Hàm đánh dấu tin nhắn đã đọc
+export function readMessage(messageId, senderId, receiverId, token) {
+    if (!stompClient || !stompClient.connected) {
+        console.error(
+            'Cannot mark message as read: STOMP client is not connected',
+        );
+        return false;
+    }
+
+    try {
+        const message = {
+            id: messageId,
+            senderId: senderId,
+            receiverId: receiverId,
+        };
+        stompClient.publish({
+            destination: '/app/chat.read',
+            body: JSON.stringify(message),
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        console.log('Message marked as read:', messageId);
+        return true;
+    } catch (error) {
+        console.error('Error marking message as read:', error);
+        return false;
     }
 }
 

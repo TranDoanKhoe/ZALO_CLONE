@@ -42,6 +42,7 @@ import {
     BiMenu,
     BiInfoCircle,
 } from 'react-icons/bi';
+import { BsCheckAll } from 'react-icons/bs';
 import Picker from 'emoji-picker-react';
 import {
     sendMessage,
@@ -54,6 +55,7 @@ import {
     getPinnedMessages,
     editMessage,
     sendCallSignal,
+    readMessage,
 } from '../../api/messageApi';
 import { fetchGroupMembers } from '../../api/groupApi';
 import SearchMessages from '../../components/SearchMessages';
@@ -196,6 +198,34 @@ const ChatWindow = ({
         }, []);
         setLocalMessages(uniqueMessages);
     }, [messages]);
+
+    // Tách riêng useEffect để đánh dấu tin nhắn đã đọc
+    useEffect(() => {
+        if (!selectedContact || selectedContact.isGroup || !token) return;
+
+        // Chỉ đánh dấu tin nhắn chưa đọc khi mở chat lần đầu
+        const unreadMessages = localMessages.filter(
+            (msg) => msg.senderId !== userId && !msg.isRead && msg.id,
+        );
+
+        if (unreadMessages.length > 0) {
+            console.log(`Marking ${unreadMessages.length} messages as read`);
+            unreadMessages.forEach((msg) => {
+                readMessage(msg.id, msg.senderId, userId, token);
+            });
+
+            // Cập nhật local state sau khi gửi read receipts
+            setTimeout(() => {
+                setLocalMessages((prev) =>
+                    prev.map((m) =>
+                        unreadMessages.some((um) => um.id === m.id)
+                            ? { ...m, isRead: true }
+                            : m,
+                    ),
+                );
+            }, 200);
+        }
+    }, [selectedContact?.id]); // Chỉ chạy khi đổi contact
 
     useEffect(() => {
         if (!token) {
@@ -1384,11 +1414,28 @@ const ChatWindow = ({
                                     variant="caption"
                                     display="block"
                                     textAlign="right"
-                                    sx={{ opacity: 0.7 }}
+                                    sx={{
+                                        opacity: 0.7,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'flex-end',
+                                        gap: 0.5,
+                                    }}
                                 >
                                     {new Date(
                                         message.createAt,
                                     ).toLocaleTimeString()}
+                                    {/* Hiển thị checkmark cho tin nhắn đã gửi */}
+                                    {message.senderId === userId &&
+                                        (message.isRead ? (
+                                            <BsCheckAll
+                                                size={16}
+                                                style={{ color: '#0091ff' }}
+                                                title="Đã xem"
+                                            />
+                                        ) : (
+                                            <BiCheck size={16} title="Đã gửi" />
+                                        ))}
                                 </Typography>
                             </MessageBubble>
                         </MessageContainer>

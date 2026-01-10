@@ -75,6 +75,11 @@ import {
     toggleAudio,
     toggleVideo,
 } from '../services/webrtcService';
+import { playNotificationSound } from '../utils/notificationSound';
+import {
+    requestNotificationPermission,
+    showNotificationIfHidden,
+} from '../utils/browserNotification';
 
 // Error Boundary Component
 class ErrorBoundary extends Component {
@@ -307,14 +312,48 @@ const Home = () => {
                         (receivedMessage.receiverId === userId
                             ? receivedMessage.senderId
                             : receivedMessage.receiverId);
+
+                    // Play notification sound and show browser notification
+                    const isSentByMe = receivedMessage.senderId === userId;
+                    const isCurrentlyViewing =
+                        selectedContact?.id === contactId;
+
+                    if (!isSentByMe) {
+                        // Play sound
+                        playNotificationSound();
+
+                        // Show browser notification if tab is not active
+                        const senderName =
+                            contacts.find(
+                                (c) => c.id === receivedMessage.senderId,
+                            )?.name || 'Người dùng';
+                        const messagePreview =
+                            receivedMessage.type === 'TEXT'
+                                ? receivedMessage.content
+                                : receivedMessage.type === 'IMAGE'
+                                ? '📷 Hình ảnh'
+                                : receivedMessage.type === 'VIDEO'
+                                ? '🎥 Video'
+                                : receivedMessage.type === 'FILE'
+                                ? '📎 Tệp đính kèm'
+                                : '💬 Tin nhắn mới';
+
+                        showNotificationIfHidden(senderName, {
+                            body: messagePreview,
+                            icon: contacts.find(
+                                (c) => c.id === receivedMessage.senderId,
+                            )?.avatar,
+                            onClick: () => {
+                                window.focus();
+                                // TODO: Focus on the contact/conversation
+                            },
+                        });
+                    }
+
                     setContacts((prevContacts) =>
                         prevContacts.map((contact) => {
                             if (contact.id === contactId) {
                                 // Chỉ tăng unreadCount nếu KHÔNG phải mình gửi và không đang xem
-                                const isCurrentlyViewing =
-                                    selectedContact?.id === contactId;
-                                const isSentByMe =
-                                    receivedMessage.senderId === userId;
                                 return {
                                     ...contact,
                                     lastMessage:
@@ -526,6 +565,18 @@ const Home = () => {
                             );
                     }
                 },
+                (readReceipt) => {
+                    if (!isMounted) return;
+                    console.log('✅ Read receipt received:', readReceipt);
+                    // Cập nhật trạng thái isRead cho tin nhắn
+                    setMessages((prev) =>
+                        prev.map((msg) =>
+                            msg.id === readReceipt.id
+                                ? { ...msg, isRead: true }
+                                : msg,
+                        ),
+                    );
+                },
             )
                 .then(() => {
                     if (!isMounted) return;
@@ -557,6 +608,12 @@ const Home = () => {
                 }
             });
         }
+
+        // Request notification permission
+        requestNotificationPermission().then((permission) => {
+            console.log('Notification permission:', permission);
+        });
+
         return () => {
             console.log('Home unmounting');
         };
