@@ -300,7 +300,9 @@ const Home = () => {
                                 deletedByUsers:
                                     receivedMessage.deletedByUsers || [],
                                 isRead: receivedMessage.isRead || false,
-                                isPinned: receivedMessage.isPinned || false,
+                                // Coerce to real boolean to avoid truthy strings like "false"
+                                // Không auto-pin tin nhắn mới đến; chỉ pin khi có thông báo pin/unpin riêng
+                                isPinned: false,
                                 isEdited: receivedMessage.isEdited || false,
                             },
                         ];
@@ -684,36 +686,40 @@ const Home = () => {
         setIsLoading(true);
         try {
             const data = await fetchFriendsList(token);
-            console.log('Friends list data from API:', data);
+            console.log('📋 Friends list data from API:', data);
             if (data) {
+                const mappedFriends = data.map((friend) => {
+                    const status = friend.activeStatus
+                        ? friend.activeStatus.toLowerCase()
+                        : 'offline';
+                    console.log(
+                        `👤 Friend: ${friend.name}`,
+                        `| activeStatus: "${friend.activeStatus}"`,
+                        `| mapped to: "${status}"`,
+                    );
+                    return {
+                        id: friend.id,
+                        name: friend.name,
+                        username: friend.name,
+                        avatar:
+                            friend.avatar ||
+                            `https://i.pravatar.cc/150?img=${Math.floor(
+                                Math.random() * 70,
+                            )}`,
+                        status: status,
+                        isFriend: true,
+                        lastSeen: friend.lastSeen || friend.lastSeenAt,
+                        lastMessage: friend.lastMessage || '',
+                        unreadCount: friend.unreadCount || 0,
+                        timestamp: friend.timestamp || 'Yesterday',
+                    };
+                });
+
+                console.log('✅ Mapped friends with status:', mappedFriends);
+
                 setContacts((prev) => [
                     ...prev.filter((c) => c.isGroup),
-                    ...data.map((friend) => {
-                        const status = friend.activeStatus
-                            ? friend.activeStatus.toLowerCase()
-                            : 'offline';
-                        console.log(
-                            `Friend ${friend.name} status:`,
-                            friend.activeStatus,
-                            '->',
-                            status,
-                        );
-                        return {
-                            id: friend.id,
-                            name: friend.name,
-                            username: friend.name,
-                            avatar:
-                                friend.avatar ||
-                                `https://i.pravatar.cc/150?img=${Math.floor(
-                                    Math.random() * 70,
-                                )}`,
-                            status: status,
-                            lastSeen: friend.lastSeen || friend.lastSeenAt,
-                            lastMessage: friend.lastMessage || '',
-                            unreadCount: friend.unreadCount || 0,
-                            timestamp: friend.timestamp || 'Yesterday',
-                        };
-                    }),
+                    ...mappedFriends,
                 ]);
             } else {
                 setSnackbarMessage('Không thể tải danh sách bạn bè!');
@@ -831,7 +837,8 @@ const Home = () => {
                             recalled: msg.recalled || false,
                             deletedByUsers: msg.deletedByUsers || [],
                             isRead: msg.isRead || false,
-                            isPinned: msg.isPinned || false,
+                            // Coerce to boolean to avoid string "false" being truthy
+                            isPinned: msg.isPinned === true,
                             isEdited: msg.isEdited || false,
                         });
                     }
@@ -1299,9 +1306,13 @@ const Home = () => {
         if (messageTab === 'unread') {
             filtered = filtered.filter((contact) => contact.unreadCount > 0);
         } else if (messageTab === 'stranger') {
-            // Lọc tin nhắn từ người lạ (không có trong danh sách bạn bè)
+            // Lọc tin nhắn từ người lạ (không phải bạn bè, không phải nhóm, và đã có tin nhắn)
             filtered = filtered.filter(
-                (contact) => !contact.isFriend && !contact.isGroup,
+                (contact) =>
+                    !contact.isFriend &&
+                    !contact.isGroup &&
+                    contact.lastMessage && // Phải có tin nhắn
+                    contact.lastMessage !== 'Chưa có tin nhắn', // Không phải placeholder
             );
         }
 

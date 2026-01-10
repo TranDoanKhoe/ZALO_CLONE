@@ -158,8 +158,8 @@ export const searchMessages = async (
 export const getPinnedMessages = async (otherUserId, groupId, token) => {
     try {
         const params = new URLSearchParams();
+        // Với nhóm: chỉ gửi groupId, không cần otherUserId
         if (groupId) {
-            params.append('otherUserId', otherUserId || '');
             params.append('groupId', groupId);
         } else {
             params.append('otherUserId', otherUserId);

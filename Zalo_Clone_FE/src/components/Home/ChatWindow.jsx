@@ -148,6 +148,12 @@ const ChatWindow = ({
     const [currentTime, setCurrentTime] = useState(new Date());
     const open = Boolean(anchorEl);
 
+    // Reset pinned state when switching conversations to avoid showing stale pins
+    useEffect(() => {
+        setPinnedMessages([]);
+        setPinnedMessagesDialogOpen(false);
+    }, [selectedContact?.id]);
+
     // Video call states
     const [callModalOpen, setCallModalOpen] = useState(false);
     const [isVideoCall, setIsVideoCall] = useState(false);
@@ -203,28 +209,47 @@ const ChatWindow = ({
     useEffect(() => {
         if (!selectedContact || selectedContact.isGroup || !token) return;
 
-        // Chỉ đánh dấu tin nhắn chưa đọc khi mở chat lần đầu
-        const unreadMessages = localMessages.filter(
-            (msg) => msg.senderId !== userId && !msg.isRead && msg.id,
-        );
+        // Đợi một chút để đảm bảo WebSocket đã kết nối
+        const timer = setTimeout(() => {
+            // Chỉ đánh dấu tin nhắn chưa đọc khi mở chat lần đầu
+            const unreadMessages = localMessages.filter(
+                (msg) => msg.senderId !== userId && !msg.isRead && msg.id,
+            );
 
-        if (unreadMessages.length > 0) {
-            console.log(`Marking ${unreadMessages.length} messages as read`);
-            unreadMessages.forEach((msg) => {
-                readMessage(msg.id, msg.senderId, userId, token);
-            });
-
-            // Cập nhật local state sau khi gửi read receipts
-            setTimeout(() => {
-                setLocalMessages((prev) =>
-                    prev.map((m) =>
-                        unreadMessages.some((um) => um.id === m.id)
-                            ? { ...m, isRead: true }
-                            : m,
-                    ),
+            if (unreadMessages.length > 0) {
+                console.log(
+                    `Marking ${unreadMessages.length} messages as read`,
                 );
-            }, 200);
-        }
+                const successfulReads = [];
+
+                unreadMessages.forEach((msg) => {
+                    const success = readMessage(
+                        msg.id,
+                        msg.senderId,
+                        userId,
+                        token,
+                    );
+                    if (success) {
+                        successfulReads.push(msg.id);
+                    }
+                });
+
+                // Chỉ cập nhật local state cho những tin nhắn đã gửi read receipt thành công
+                if (successfulReads.length > 0) {
+                    setTimeout(() => {
+                        setLocalMessages((prev) =>
+                            prev.map((m) =>
+                                successfulReads.includes(m.id)
+                                    ? { ...m, isRead: true }
+                                    : m,
+                            ),
+                        );
+                    }, 200);
+                }
+            }
+        }, 500); // Đợi 500ms để WebSocket connect xong
+
+        return () => clearTimeout(timer);
     }, [selectedContact?.id]); // Chỉ chạy khi đổi contact
 
     useEffect(() => {
@@ -255,11 +280,74 @@ const ChatWindow = ({
 
         try {
             const pinned = await getPinnedMessages(
-                selectedContact.isGroup ? userId : selectedContact.id,
+                // Với nhóm: chỉ cần groupId, otherUserId để null để tránh backend trả về tất cả
+                selectedContact.isGroup ? null : selectedContact.id,
                 selectedContact.isGroup ? selectedContact.id : null,
                 token,
             );
-            setPinnedMessages(pinned);
+
+            console.log('🔍 Raw pinned messages from backend:', pinned);
+            console.log('📌 Current contact:', selectedContact);
+            console.log('👤 Current userId:', userId);
+
+            const filteredPinned = (pinned || [])
+                .filter((msg) => {
+                    const isPinnedFlag =
+                        msg.isPinned === true || msg.isPinned === 'true';
+                    const hasPinMeta = !!(
+                        msg.pinBy ||
+                        msg.pinnedBy ||
+                        msg.pinnedAt ||
+                        msg.pinAt ||
+                        msg.pinTime
+                    );
+
+                    if (!isPinnedFlag && !hasPinMeta) {
+                        console.log('Skip not-marked-pinned:', msg.id);
+                        return false;
+                    }
+
+                    if (selectedContact.isGroup) {
+                        const sameGroup = msg.groupId === selectedContact.id;
+                        if (!sameGroup) {
+                            console.log(
+                                'Skip non-group message for current group:',
+                                msg.id,
+                                msg.groupId,
+                            );
+                        }
+                        return sameGroup;
+                    }
+
+                    const otherId = selectedContact.id;
+                    const isDirectMessage =
+                        msg.groupId === undefined || msg.groupId === null;
+                    const involvesCurrentPair =
+                        (msg.senderId === userId &&
+                            msg.receiverId === otherId) ||
+                        (msg.senderId === otherId && msg.receiverId === userId);
+
+                    if (!isDirectMessage || !involvesCurrentPair) {
+                        console.log(
+                            'Skip message not in this DM pair:',
+                            msg.id,
+                            msg.groupId,
+                            msg.senderId,
+                            msg.receiverId,
+                        );
+                    }
+
+                    return isDirectMessage && involvesCurrentPair;
+                })
+                .reduce((unique, msg) => {
+                    if (!unique.some((item) => item.id === msg.id)) {
+                        unique.push(msg);
+                    }
+                    return unique;
+                }, []);
+
+            console.log('✅ Filtered pinned messages:', filteredPinned);
+            setPinnedMessages(filteredPinned);
             setPinnedMessagesDialogOpen(true);
         } catch (error) {
             console.error('Error fetching pinned messages:', error);
@@ -974,15 +1062,14 @@ const ChatWindow = ({
                             isSender={message.senderId === userId}
                             id={`message-${message.id}`}
                         >
-                            {message.senderId === userId &&
-                                !message.recalled &&
+                            {!message.recalled &&
                                 !message.deletedByUsers?.includes(userId) && (
                                     <Box
                                         display="flex"
                                         flexDirection="row"
                                         alignItems="center"
                                     >
-                                        {/* 2 hành động luôn hiển thị */}
+                                        {/* Pin button - cho phép ghim cả tin nhắn của mình và người khác */}
                                         <IconButton
                                             size="small"
                                             onClick={() =>
@@ -996,19 +1083,22 @@ const ChatWindow = ({
                                         >
                                             <BiPin />
                                         </IconButton>
-                                        {message.type === 'TEXT' && (
-                                            <IconButton
-                                                size="small"
-                                                onClick={() =>
-                                                    handleOpenEditDialog(
-                                                        message,
-                                                    )
-                                                }
-                                                disabled={isSending}
-                                            >
-                                                <BiEdit />
-                                            </IconButton>
-                                        )}
+
+                                        {/* Các action khác chỉ cho tin nhắn của mình */}
+                                        {message.senderId === userId &&
+                                            message.type === 'TEXT' && (
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() =>
+                                                        handleOpenEditDialog(
+                                                            message,
+                                                        )
+                                                    }
+                                                    disabled={isSending}
+                                                >
+                                                    <BiEdit />
+                                                </IconButton>
+                                            )}
 
                                         {/* Menu gom 3 hành động khác */}
                                         <IconButton
@@ -1022,34 +1112,44 @@ const ChatWindow = ({
                                             open={open}
                                             onClose={handleMenuClose}
                                         >
-                                            <MenuItem
-                                                onClick={() => {
-                                                    handleRecallMessage(
-                                                        message,
-                                                    );
-                                                    handleMenuClose();
-                                                }}
-                                                disabled={isSending}
-                                            >
-                                                <BiUndo
-                                                    style={{ marginRight: 8 }}
-                                                />{' '}
-                                                Thu hồi
-                                            </MenuItem>
-                                            <MenuItem
-                                                onClick={() => {
-                                                    handleDeleteMessage(
-                                                        message,
-                                                    );
-                                                    handleMenuClose();
-                                                }}
-                                                disabled={isSending}
-                                            >
-                                                <BiTrash
-                                                    style={{ marginRight: 8 }}
-                                                />{' '}
-                                                Xóa
-                                            </MenuItem>
+                                            {/* Thu hồi và Xóa chỉ cho tin nhắn của mình */}
+                                            {message.senderId === userId && (
+                                                <MenuItem
+                                                    onClick={() => {
+                                                        handleRecallMessage(
+                                                            message,
+                                                        );
+                                                        handleMenuClose();
+                                                    }}
+                                                    disabled={isSending}
+                                                >
+                                                    <BiUndo
+                                                        style={{
+                                                            marginRight: 8,
+                                                        }}
+                                                    />{' '}
+                                                    Thu hồi
+                                                </MenuItem>
+                                            )}
+                                            {message.senderId === userId && (
+                                                <MenuItem
+                                                    onClick={() => {
+                                                        handleDeleteMessage(
+                                                            message,
+                                                        );
+                                                        handleMenuClose();
+                                                    }}
+                                                    disabled={isSending}
+                                                >
+                                                    <BiTrash
+                                                        style={{
+                                                            marginRight: 8,
+                                                        }}
+                                                    />{' '}
+                                                    Xóa
+                                                </MenuItem>
+                                            )}
+                                            {/* Chuyển tiếp cho phép với tất cả tin nhắn */}
                                             <MenuItem
                                                 onClick={() => {
                                                     handleOpenForwardDialog(
