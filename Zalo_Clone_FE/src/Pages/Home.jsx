@@ -461,6 +461,8 @@ const Home = () => {
                 (editedMessage) => {
                     if (!isMounted) return;
                     console.log('Received edit notification:', editedMessage);
+
+                    // Update message content
                     setMessages((prev) =>
                         prev.map((msg) =>
                             msg.id === editedMessage.id
@@ -471,6 +473,30 @@ const Home = () => {
                                   }
                                 : msg,
                         ),
+                    );
+
+                    // Update lastMessage in contact list if it's the most recent message
+                    const contactId =
+                        editedMessage.groupId ||
+                        (editedMessage.receiverId === userId
+                            ? editedMessage.senderId
+                            : editedMessage.receiverId);
+
+                    setContacts((prevContacts) =>
+                        prevContacts.map((contact) => {
+                            if (contact.id === contactId) {
+                                // Only update if this is likely the last message
+                                // (we can check by comparing IDs or timestamps if needed)
+                                return {
+                                    ...contact,
+                                    lastMessage:
+                                        editedMessage.type === 'TEXT'
+                                            ? editedMessage.content
+                                            : contact.lastMessage,
+                                };
+                            }
+                            return contact;
+                        }),
                     );
                 },
                 (statusChange) => {
