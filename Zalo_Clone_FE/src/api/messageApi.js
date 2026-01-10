@@ -321,17 +321,12 @@ export function connectWebSocket(
         });
 
         stompClient.onConnect = (frame) => {
-            console.log('STOMP connected:', frame);
-
-            // Store reference to avoid null issues
-            const client = stompClient;
-            if (!client) {
-                console.error('STOMP client is null in onConnect');
-                reject(new Error('STOMP client became null'));
-                return;
-            }
+            console.log('✅ STOMP connected successfully!', frame);
+            console.log(`🔌 Connected with userId: ${userId}`);
 
             try {
+                // Use stompClient directly, it's guaranteed to exist in onConnect
+                const client = stompClient;
                 // Subscription cho tin nhắn 1-1
                 client.subscribe(
                     `/user/${userId}/queue/messages`,
@@ -673,7 +668,8 @@ export function connectWebSocket(
 
         stompClient.onWebSocketClose = (event) => {
             console.log('SockJS disconnected:', event);
-            stompClient = null;
+            // Don't set to null here to avoid race condition
+            // stompClient will be cleaned up in disconnectWebSocket()
         };
 
         stompClient.onWebSocketError = (error) => {

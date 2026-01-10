@@ -326,7 +326,12 @@ const Home = () => {
                                             ? '[Video]'
                                             : receivedMessage.type === 'AUDIO'
                                             ? '[Âm thanh]'
-                                            : '[File]',
+                                            : receivedMessage.type === 'FILE'
+                                            ? `[File: ${
+                                                  receivedMessage.fileName ||
+                                                  'Tài liệu'
+                                              }]`
+                                            : '[Tin nhắn]',
                                     timestamp: new Date().toISOString(),
                                     unreadCount:
                                         isSentByMe || isCurrentlyViewing
@@ -431,17 +436,25 @@ const Home = () => {
                 (statusChange) => {
                     if (!isMounted) return;
                     console.log(
-                        'Received status change notification:',
+                        '🔔 Received status change notification:',
                         statusChange,
                     );
                     // statusChange có dạng: { userId: 'xxx', status: 'online' hoặc 'offline' }
-                    setContacts((prevContacts) =>
-                        prevContacts.map((contact) =>
-                            contact.id === statusChange.userId
-                                ? { ...contact, status: statusChange.status }
-                                : contact,
-                        ),
-                    );
+                    setContacts((prevContacts) => {
+                        const updatedContacts = prevContacts.map((contact) => {
+                            if (contact.id === statusChange.userId) {
+                                console.log(
+                                    `✅ Updating ${contact.name} status: ${contact.status} -> ${statusChange.status}`,
+                                );
+                                return {
+                                    ...contact,
+                                    status: statusChange.status,
+                                };
+                            }
+                            return contact;
+                        });
+                        return updatedContacts;
+                    });
                 },
                 (callSignal) => {
                     if (!isMounted) return;
@@ -587,26 +600,36 @@ const Home = () => {
         setIsLoading(true);
         try {
             const data = await fetchFriendsList(token);
+            console.log('Friends list data from API:', data);
             if (data) {
                 setContacts((prev) => [
                     ...prev.filter((c) => c.isGroup),
-                    ...data.map((friend) => ({
-                        id: friend.id,
-                        name: friend.name,
-                        username: friend.name,
-                        avatar:
-                            friend.avatar ||
-                            `https://i.pravatar.cc/150?img=${Math.floor(
-                                Math.random() * 70,
-                            )}`,
-                        status: friend.activeStatus
+                    ...data.map((friend) => {
+                        const status = friend.activeStatus
                             ? friend.activeStatus.toLowerCase()
-                            : 'offline',
-                        lastSeen: friend.lastSeen || friend.lastSeenAt, // Thêm lastSeen từ API
-                        lastMessage: friend.lastMessage || '',
-                        unreadCount: friend.unreadCount || 0,
-                        timestamp: friend.timestamp || 'Yesterday',
-                    })),
+                            : 'offline';
+                        console.log(
+                            `Friend ${friend.name} status:`,
+                            friend.activeStatus,
+                            '->',
+                            status,
+                        );
+                        return {
+                            id: friend.id,
+                            name: friend.name,
+                            username: friend.name,
+                            avatar:
+                                friend.avatar ||
+                                `https://i.pravatar.cc/150?img=${Math.floor(
+                                    Math.random() * 70,
+                                )}`,
+                            status: status,
+                            lastSeen: friend.lastSeen || friend.lastSeenAt,
+                            lastMessage: friend.lastMessage || '',
+                            unreadCount: friend.unreadCount || 0,
+                            timestamp: friend.timestamp || 'Yesterday',
+                        };
+                    }),
                 ]);
             } else {
                 setSnackbarMessage('Không thể tải danh sách bạn bè!');

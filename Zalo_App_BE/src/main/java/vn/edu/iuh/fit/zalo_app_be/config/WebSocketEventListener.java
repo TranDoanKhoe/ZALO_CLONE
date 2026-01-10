@@ -39,6 +39,11 @@ public class WebSocketEventListener {
         if (userId != null && !userId.isEmpty()) {
             log.info("User connected with ID: {}", userId);
             
+            // Lưu userId vào session attributes để dùng khi disconnect
+            if (headerAccessor.getSessionAttributes() != null) {
+                headerAccessor.getSessionAttributes().put("userId", userId);
+            }
+            
             // Tìm user theo ID
             Optional<User> userOptional = userRepository.findById(userId);
             if (userOptional.isPresent()) {
