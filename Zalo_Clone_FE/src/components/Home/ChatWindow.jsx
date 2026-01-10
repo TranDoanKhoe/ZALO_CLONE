@@ -200,7 +200,10 @@ const ChatWindow = ({
         // Deduplicate by id but always take the latest version (to keep refreshed flags like isPinned/isRead)
         const mapById = new Map();
         messages.forEach((msg) => {
-            mapById.set(msg.id || msg.tempKey || `${msg.createAt}-${msg.senderId}`, msg);
+            mapById.set(
+                msg.id || msg.tempKey || `${msg.createAt}-${msg.senderId}`,
+                msg,
+            );
         });
         setLocalMessages((prev) => {
             const merged = Array.from(mapById.values()).map((msg) => {
