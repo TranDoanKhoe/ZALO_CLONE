@@ -36,9 +36,11 @@ import {
     BiPin,
     BiEdit,
     BiImage,
+    BiFile,
     BiMicrophone,
     BiCheck,
     BiMenu,
+    BiInfoCircle,
 } from 'react-icons/bi';
 import Picker from 'emoji-picker-react';
 import {
@@ -57,6 +59,8 @@ import { fetchGroupMembers } from '../../api/groupApi';
 import SearchMessages from '../../components/SearchMessages';
 import FriendModal from './FriendModal';
 import VideoCallModal from './VideoCallModal';
+import GroupInfoPanel from './GroupInfoPanel';
+import PersonalChatInfoPanel from './PersonalChatInfoPanel';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { getLastSeenText } from '../../utils/timeUtils';
@@ -132,6 +136,7 @@ const ChatWindow = ({
     const [groupMembers, setGroupMembers] = useState([]);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const fileInputRef = useRef(null);
+    const documentInputRef = useRef(null);
     const messagesEndRef = useRef(null);
     const [isFriendModalOpen, setIsFriendModalOpen] = useState(false);
     const [profileData, setProfileData] = useState(null);
@@ -150,6 +155,7 @@ const ChatWindow = ({
     const [isVideoEnabled, setIsVideoEnabled] = useState(true);
     const [callStatus, setCallStatus] = useState('');
     const [isInitiator, setIsInitiator] = useState(false);
+    const [showGroupInfo, setShowGroupInfo] = useState(false);
 
     // Cập nhật thời gian mỗi phút để hiển thị "last seen" realtime
     useEffect(() => {
@@ -426,17 +432,29 @@ const ChatWindow = ({
                 message: error.message,
                 response: error.response?.data,
                 status: error.response?.status,
+                headers: error.response?.headers,
                 token: token ? 'EXISTS' : 'NO TOKEN',
             });
-            toast.error(
-                `Lỗi gửi file: ${
-                    error.response?.data?.message || error.message
-                }`,
-            );
+
+            // Xử lý lỗi cụ thể
+            if (error.response?.status === 403) {
+                toast.error('Lỗi xác thực. Vui lòng đăng nhập lại!');
+            } else if (error.response?.status === 401) {
+                toast.error('Token hết hạn. Vui lòng đăng nhập lại!');
+            } else {
+                toast.error(
+                    `Lỗi gửi file: ${
+                        error.response?.data?.message || error.message
+                    }`,
+                );
+            }
         } finally {
             setIsSending(false);
             if (fileInputRef.current) {
                 fileInputRef.current.value = '';
+            }
+            if (documentInputRef.current) {
+                documentInputRef.current.value = '';
             }
         }
     };
@@ -770,735 +788,958 @@ const ChatWindow = ({
     }
 
     return (
-        <ChatContainer>
-            <Box
-                p={2}
-                display="flex"
-                alignItems="center"
-                borderBottom={1}
-                borderColor="divider"
-                sx={{
-                    bgcolor: 'white',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                }}
-            >
-                <Avatar
-                    src={selectedContact.avatar}
-                    sx={{ cursor: 'pointer', width: 48, height: 48 }}
-                    onClick={handleProfileOpen}
-                >
-                    {selectedContact.isGroup && <BiGroup />}
-                </Avatar>
+        <Box
+            sx={{
+                display: 'flex',
+                flex: 1,
+                height: '100%',
+                overflow: 'hidden',
+            }}
+        >
+            <ChatContainer>
                 <Box
-                    ml={2}
-                    flex={1}
-                    sx={{ cursor: 'pointer' }}
-                    onClick={handleProfileOpen}
+                    p={2}
+                    display="flex"
+                    alignItems="center"
+                    borderBottom={1}
+                    borderColor="divider"
+                    sx={{
+                        bgcolor: 'white',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                    }}
                 >
-                    <Typography
-                        variant="subtitle1"
-                        sx={{ fontWeight: 'bold', fontSize: '1rem' }}
+                    <Avatar
+                        src={selectedContact.avatar}
+                        sx={{ cursor: 'pointer', width: 48, height: 48 }}
+                        onClick={handleProfileOpen}
                     >
-                        {selectedContact.name}
-                    </Typography>
-                    <Typography
-                        variant="caption"
-                        color="textSecondary"
-                        sx={{ fontSize: '0.85rem' }}
-                        key={currentTime.getTime()}
+                        {selectedContact.isGroup && <BiGroup />}
+                    </Avatar>
+                    <Box
+                        ml={2}
+                        flex={1}
+                        sx={{ cursor: 'pointer' }}
+                        onClick={handleProfileOpen}
                     >
-                        {selectedContact.isGroup
-                            ? `Nhóm`
-                            : selectedContact.status === 'online'
-                            ? 'Đang hoạt động'
-                            : selectedContact.lastSeen
-                            ? `Hoạt động ${getLastSeenText(
-                                  selectedContact.lastSeen,
-                              )}`
-                            : 'Không hoạt động'}
-                    </Typography>
-                </Box>
-                {selectedContact.isGroup ? (
-                    <>
-                        <IconButton
-                            onClick={() => setShowSearchBar(!showSearchBar)}
-                            sx={{ color: '#666' }}
+                        <Typography
+                            variant="subtitle1"
+                            sx={{ fontWeight: 'bold', fontSize: '1rem' }}
                         >
-                            <BiSearch size={22} />
-                        </IconButton>
-                        <IconButton
-                            onClick={handleShowPinnedMessages}
-                            sx={{ color: '#666' }}
+                            {selectedContact.name}
+                        </Typography>
+                        <Typography
+                            variant="caption"
+                            color="textSecondary"
+                            sx={{ fontSize: '0.85rem' }}
+                            key={currentTime.getTime()}
                         >
-                            <BiPin size={22} />
-                        </IconButton>
-                    </>
-                ) : (
-                    <>
-                        <IconButton
-                            onClick={() => setShowSearchBar(!showSearchBar)}
-                            sx={{ color: '#666' }}
-                        >
-                            <BiSearch size={22} />
-                        </IconButton>
-                        <IconButton
-                            onClick={handleShowPinnedMessages}
-                            sx={{ color: '#666' }}
-                        >
-                            <BiPin size={22} />
-                        </IconButton>
-                        {!selectedContact?.isGroup && (
-                            <>
-                                <IconButton
-                                    onClick={() => handleStartCall(false)}
-                                    sx={{ color: '#666' }}
-                                    title="Gọi thoại"
-                                >
-                                    <BiPhone size={22} />
-                                </IconButton>
-                                <IconButton
-                                    onClick={() => handleStartCall(true)}
-                                    sx={{ color: '#666' }}
-                                    title="Gọi video"
-                                >
-                                    <BiVideo size={22} />
-                                </IconButton>
-                            </>
-                        )}
-                        <IconButton sx={{ color: '#666' }}>
-                            <BiDotsVerticalRounded size={22} />
-                        </IconButton>
-                    </>
-                )}
-            </Box>
-
-            {showSearchBar && (
-                <SearchMessages
-                    userId={userId}
-                    selectedContact={selectedContact}
-                    token={token}
-                    onSelectMessage={handleSelectMessage}
-                    onClose={() => setShowSearchBar(false)}
-                />
-            )}
-
-            <Box
-                flex={1}
-                overflow="auto"
-                p={2}
-                sx={{ bgcolor: '#f0f0f0', position: 'relative' }}
-            >
-                {isSending && (
-                    <Box display="flex" justifyContent="center" my={2}>
-                        <CircularProgress size={24} />
+                            {selectedContact.isGroup
+                                ? `Nhóm`
+                                : selectedContact.status === 'online'
+                                ? 'Đang hoạt động'
+                                : selectedContact.lastSeen
+                                ? `Hoạt động ${getLastSeenText(
+                                      selectedContact.lastSeen,
+                                  )}`
+                                : 'Không hoạt động'}
+                        </Typography>
                     </Box>
-                )}
-                {localMessages.map((message, index) => (
-                    <MessageContainer
-                        key={
-                            message.id
-                                ? `${message.id}-${index}`
-                                : message.tempKey
-                                ? `${message.tempKey}-${index}`
-                                : `${message.createAt}-${message.senderId}-${index}`
-                        }
-                        isSender={message.senderId === userId}
-                        id={`message-${message.id}`}
-                    >
-                        {message.senderId === userId &&
-                            !message.recalled &&
-                            !message.deletedByUsers?.includes(userId) && (
-                                <Box
-                                    display="flex"
-                                    flexDirection="row"
-                                    alignItems="center"
-                                >
-                                    {/* 2 hành động luôn hiển thị */}
+                    {selectedContact.isGroup ? (
+                        <>
+                            <IconButton
+                                onClick={() => setShowSearchBar(!showSearchBar)}
+                                sx={{ color: '#666' }}
+                            >
+                                <BiSearch size={22} />
+                            </IconButton>
+                            <IconButton
+                                onClick={handleShowPinnedMessages}
+                                sx={{ color: '#666' }}
+                            >
+                                <BiPin size={22} />
+                            </IconButton>
+                            <IconButton
+                                onClick={() => setShowGroupInfo(!showGroupInfo)}
+                                sx={{
+                                    color: showGroupInfo ? '#0091ff' : '#666',
+                                }}
+                                title="Thông tin nhóm"
+                            >
+                                <BiInfoCircle size={22} />
+                            </IconButton>
+                        </>
+                    ) : (
+                        <>
+                            <IconButton
+                                onClick={() => setShowSearchBar(!showSearchBar)}
+                                sx={{ color: '#666' }}
+                            >
+                                <BiSearch size={22} />
+                            </IconButton>
+                            <IconButton
+                                onClick={handleShowPinnedMessages}
+                                sx={{ color: '#666' }}
+                            >
+                                <BiPin size={22} />
+                            </IconButton>
+                            {!selectedContact?.isGroup && (
+                                <>
                                     <IconButton
-                                        size="small"
-                                        onClick={() =>
-                                            message.isPinned
-                                                ? handleUnpinMessage(message)
-                                                : handlePinMessage(message)
-                                        }
-                                        disabled={isSending}
+                                        onClick={() => handleStartCall(false)}
+                                        sx={{ color: '#666' }}
+                                        title="Gọi thoại"
                                     >
-                                        <BiPin />
+                                        <BiPhone size={22} />
                                     </IconButton>
-                                    {message.type === 'TEXT' && (
+                                    <IconButton
+                                        onClick={() => handleStartCall(true)}
+                                        sx={{ color: '#666' }}
+                                        title="Gọi video"
+                                    >
+                                        <BiVideo size={22} />
+                                    </IconButton>
+                                </>
+                            )}
+                            <IconButton
+                                onClick={() => setShowGroupInfo(!showGroupInfo)}
+                                sx={{
+                                    color: showGroupInfo ? '#0091ff' : '#666',
+                                }}
+                                title="Thông tin"
+                            >
+                                <BiInfoCircle size={22} />
+                            </IconButton>
+                        </>
+                    )}
+                </Box>
+
+                {showSearchBar && (
+                    <SearchMessages
+                        userId={userId}
+                        selectedContact={selectedContact}
+                        token={token}
+                        onSelectMessage={handleSelectMessage}
+                        onClose={() => setShowSearchBar(false)}
+                    />
+                )}
+
+                <Box
+                    flex={1}
+                    overflow="auto"
+                    p={2}
+                    sx={{ bgcolor: '#f0f0f0', position: 'relative' }}
+                >
+                    {isSending && (
+                        <Box display="flex" justifyContent="center" my={2}>
+                            <CircularProgress size={24} />
+                        </Box>
+                    )}
+                    {localMessages.map((message, index) => (
+                        <MessageContainer
+                            key={
+                                message.id
+                                    ? `${message.id}-${index}`
+                                    : message.tempKey
+                                    ? `${message.tempKey}-${index}`
+                                    : `${message.createAt}-${message.senderId}-${index}`
+                            }
+                            isSender={message.senderId === userId}
+                            id={`message-${message.id}`}
+                        >
+                            {message.senderId === userId &&
+                                !message.recalled &&
+                                !message.deletedByUsers?.includes(userId) && (
+                                    <Box
+                                        display="flex"
+                                        flexDirection="row"
+                                        alignItems="center"
+                                    >
+                                        {/* 2 hành động luôn hiển thị */}
                                         <IconButton
                                             size="small"
                                             onClick={() =>
-                                                handleOpenEditDialog(message)
-                                            }
-                                            disabled={isSending}
-                                        >
-                                            <BiEdit />
-                                        </IconButton>
-                                    )}
-
-                                    {/* Menu gom 3 hành động khác */}
-                                    <IconButton
-                                        size="small"
-                                        onClick={handleMenuOpen}
-                                    >
-                                        <BiDotsVerticalRounded />
-                                    </IconButton>
-                                    <Menu
-                                        anchorEl={anchorEl}
-                                        open={open}
-                                        onClose={handleMenuClose}
-                                    >
-                                        <MenuItem
-                                            onClick={() => {
-                                                handleRecallMessage(message);
-                                                handleMenuClose();
-                                            }}
-                                            disabled={isSending}
-                                        >
-                                            <BiUndo
-                                                style={{ marginRight: 8 }}
-                                            />{' '}
-                                            Thu hồi
-                                        </MenuItem>
-                                        <MenuItem
-                                            onClick={() => {
-                                                handleDeleteMessage(message);
-                                                handleMenuClose();
-                                            }}
-                                            disabled={isSending}
-                                        >
-                                            <BiTrash
-                                                style={{ marginRight: 8 }}
-                                            />{' '}
-                                            Xóa
-                                        </MenuItem>
-                                        <MenuItem
-                                            onClick={() => {
-                                                handleOpenForwardDialog(
-                                                    message,
-                                                );
-                                                handleMenuClose();
-                                            }}
-                                            disabled={isSending}
-                                        >
-                                            <BiShare
-                                                style={{ marginRight: 8 }}
-                                            />{' '}
-                                            Chuyển tiếp
-                                        </MenuItem>
-                                    </Menu>
-                                </Box>
-                            )}
-                        <MessageBubble isSender={message.senderId === userId}>
-                            {message.isPinned && (
-                                <PinIndicator>
-                                    <BiPin />
-                                </PinIndicator>
-                            )}
-                            {message.recalled ? (
-                                <Typography fontStyle="italic">
-                                    Tin nhắn đã được thu hồi
-                                </Typography>
-                            ) : message.deletedByUsers?.includes(
-                                  message.senderId,
-                              ) ||
-                              message.deletedByUsers?.includes(
-                                  message.receiverId,
-                              ) ||
-                              message.deletedByUsers?.includes(userId) ? (
-                                <Typography fontStyle="italic">
-                                    Tin nhắn đã bị xóa
-                                </Typography>
-                            ) : message.type === 'TEXT' ? (
-                                <>
-                                    {selectedContact.isGroup &&
-                                        message.senderId !== userId && (
-                                            <Typography
-                                                variant="caption"
-                                                display="block"
-                                                sx={{ opacity: 0.7, mb: 1 }}
-                                            >
-                                                {groupMembers.find(
-                                                    (m) =>
-                                                        m.id ===
-                                                        message.senderId,
-                                                )?.username || 'Unknown'}
-                                            </Typography>
-                                        )}
-                                    <Typography>{message.content}</Typography>
-                                    {message.isEdited && (
-                                        <Typography
-                                            variant="caption"
-                                            sx={{
-                                                opacity: 0.7,
-                                                fontStyle: 'italic',
-                                            }}
-                                        >
-                                            (Đã chỉnh sửa)
-                                        </Typography>
-                                    )}
-                                </>
-                            ) : message.type === 'IMAGE' ? (
-                                <>
-                                    {selectedContact.isGroup &&
-                                        message.senderId !== userId && (
-                                            <Typography
-                                                variant="caption"
-                                                display="block"
-                                                sx={{ opacity: 0.7, mb: 1 }}
-                                            >
-                                                {groupMembers.find(
-                                                    (m) =>
-                                                        m.id ===
-                                                        message.senderId,
-                                                )?.username || 'Unknown'}
-                                            </Typography>
-                                        )}
-                                    <img
-                                        src={message.content}
-                                        alt="Uploaded"
-                                        style={{
-                                            maxWidth: '200px',
-                                            borderRadius: '8px',
-                                            cursor: 'pointer',
-                                        }}
-                                        onClick={() =>
-                                            window.open(
-                                                message.content,
-                                                '_blank',
-                                            )
-                                        }
-                                    />
-                                </>
-                            ) : message.type === 'VIDEO' ? (
-                                <>
-                                    {selectedContact.isGroup &&
-                                        message.senderId !== userId && (
-                                            <Typography
-                                                variant="caption"
-                                                display="block"
-                                                sx={{ opacity: 0.7, mb: 1 }}
-                                            >
-                                                {groupMembers.find(
-                                                    (m) =>
-                                                        m.id ===
-                                                        message.senderId,
-                                                )?.username || 'Unknown'}
-                                            </Typography>
-                                        )}
-                                    <video
-                                        src={message.content}
-                                        controls
-                                        style={{
-                                            maxWidth: '200px',
-                                            borderRadius: '8px',
-                                        }}
-                                    />
-                                </>
-                            ) : message.type === 'AUDIO' ? (
-                                <>
-                                    {selectedContact.isGroup &&
-                                        message.senderId !== userId && (
-                                            <Typography
-                                                variant="caption"
-                                                display="block"
-                                                sx={{ opacity: 0.7, mb: 1 }}
-                                            >
-                                                {groupMembers.find(
-                                                    (m) =>
-                                                        m.id ===
-                                                        message.senderId,
-                                                )?.username || 'Unknown'}
-                                            </Typography>
-                                        )}
-                                    <audio
-                                        controls
-                                        style={{ maxWidth: '200px' }}
-                                    >
-                                        <source
-                                            src={message.content}
-                                            type="audio/mpeg"
-                                        />
-                                        <source
-                                            src={message.content}
-                                            type="audio/wav"
-                                        />
-                                        <source
-                                            src={message.content}
-                                            type="audio/ogg"
-                                        />
-                                        Trình duyệt của bạn không hỗ trợ phát
-                                        audio.
-                                    </audio>
-                                </>
-                            ) : message.type === 'FORWARD' ? (
-                                <>
-                                    {selectedContact.isGroup &&
-                                        message.senderId !== userId && (
-                                            <Typography
-                                                variant="caption"
-                                                display="block"
-                                                sx={{ opacity: 0.7, mb: 1 }}
-                                            >
-                                                {groupMembers.find(
-                                                    (m) =>
-                                                        m.id ===
-                                                        message.senderId,
-                                                )?.username || 'Unknown'}
-                                            </Typography>
-                                        )}
-                                    <Box>
-                                        <Typography
-                                            fontStyle="italic"
-                                            variant="caption"
-                                        >
-                                            Chuyển tiếp từ{' '}
-                                            {message.forwardedFrom?.senderId ||
-                                                'người dùng khác'}
-                                        </Typography>
-                                        <Typography>
-                                            {message.content}
-                                        </Typography>
-                                    </Box>
-                                </>
-                            ) : message.type === 'FILE' ? (
-                                <>
-                                    {selectedContact.isGroup &&
-                                        message.senderId !== userId && (
-                                            <Typography
-                                                variant="caption"
-                                                display="block"
-                                                sx={{ opacity: 0.7, mb: 1 }}
-                                            >
-                                                {groupMembers.find(
-                                                    (m) =>
-                                                        m.id ===
-                                                        message.senderId,
-                                                )?.username || 'Unknown'}
-                                            </Typography>
-                                        )}
-                                    <a
-                                        href={message.content}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                    >
-                                        {message.fileName || 'Xem file'}
-                                    </a>
-                                </>
-                            ) : (
-                                <Typography>
-                                    Loại tin nhắn không được hỗ trợ
-                                </Typography>
-                            )}
-                            <Typography
-                                variant="caption"
-                                display="block"
-                                textAlign="right"
-                                sx={{ opacity: 0.7 }}
-                            >
-                                {new Date(
-                                    message.createAt,
-                                ).toLocaleTimeString()}
-                            </Typography>
-                        </MessageBubble>
-                    </MessageContainer>
-                ))}
-                <div ref={messagesEndRef} />
-            </Box>
-
-            <Box
-                p={1.5}
-                borderTop={1}
-                borderColor="divider"
-                sx={{ bgcolor: 'background.paper', position: 'relative' }}
-            >
-                {showEmojiPicker && (
-                    <Box
-                        sx={{
-                            position: 'absolute',
-                            bottom: '100%',
-                            right: 10,
-                            zIndex: 1000,
-                        }}
-                    >
-                        <Picker onEmojiClick={onEmojiClick} />
-                    </Box>
-                )}
-                <Box display="flex" alignItems="center" gap={1}>
-                    <IconButton size="medium" sx={{ color: '#0084ff' }}>
-                        <BiPaperclip size={24} />
-                    </IconButton>
-                    <IconButton
-                        size="medium"
-                        component="label"
-                        sx={{ color: '#0084ff' }}
-                    >
-                        <BiImage size={24} />
-                        <input
-                            type="file"
-                            multiple
-                            hidden
-                            ref={fileInputRef}
-                            onChange={handleFileUpload}
-                            accept="image/*,video/*,audio/*"
-                        />
-                    </IconButton>
-                    <IconButton size="medium" sx={{ color: '#0084ff' }}>
-                        <BiMicrophone size={24} />
-                    </IconButton>
-                    <TextField
-                        fullWidth
-                        placeholder={`Aa`}
-                        variant="outlined"
-                        size="small"
-                        value={messageInput}
-                        onChange={onMessageInputChange}
-                        onKeyPress={(e) =>
-                            e.key === 'Enter' && handleSendMessage()
-                        }
-                        inputRef={messageInputRef}
-                        sx={{
-                            '& .MuiOutlinedInput-root': {
-                                borderRadius: '20px',
-                                backgroundColor: '#f0f2f5',
-                                '& fieldset': {
-                                    borderColor: 'transparent',
-                                },
-                                '&:hover fieldset': {
-                                    borderColor: 'transparent',
-                                },
-                                '&.Mui-focused fieldset': {
-                                    borderColor: '#0084ff',
-                                    borderWidth: '1px',
-                                },
-                            },
-                        }}
-                    />
-                    <IconButton
-                        size="medium"
-                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                        sx={{ color: '#0084ff' }}
-                    >
-                        <BiSmile size={24} />
-                    </IconButton>
-                    {messageInput.trim() ? (
-                        <IconButton
-                            onClick={handleSendMessage}
-                            disabled={isSending}
-                            sx={{
-                                color: '#0084ff',
-                                '&:hover': {
-                                    bgcolor: 'rgba(0, 132, 255, 0.1)',
-                                },
-                            }}
-                        >
-                            <BiSend size={24} />
-                        </IconButton>
-                    ) : null}
-                </Box>
-            </Box>
-
-            <Dialog
-                open={forwardDialogOpen}
-                onClose={() => setForwardDialogOpen(false)}
-            >
-                <DialogTitle>Chọn liên hệ hoặc nhóm để chuyển tiếp</DialogTitle>
-                <DialogContent>
-                    <List>
-                        {contacts.map((contact) => (
-                            <ListItem
-                                key={contact.id}
-                                onClick={() => handleForwardMessage(contact)}
-                            >
-                                <ListItemAvatar>
-                                    <Avatar src={contact.avatar}>
-                                        {contact.isGroup && <BiGroup />}
-                                    </Avatar>
-                                </ListItemAvatar>
-                                <ListItemText
-                                    primary={
-                                        contact.isGroup
-                                            ? `[Nhóm] ${contact.name}`
-                                            : contact.name
-                                    }
-                                    secondary={
-                                        contact.isGroup
-                                            ? 'Nhóm'
-                                            : contact.username
-                                    }
-                                />
-                            </ListItem>
-                        ))}
-                    </List>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog
-                open={editDialogOpen}
-                onClose={() => setEditDialogOpen(false)}
-            >
-                <DialogTitle>Chỉnh sửa tin nhắn</DialogTitle>
-                <DialogContent>
-                    <TextField
-                        fullWidth
-                        label="Nội dung tin nhắn"
-                        variant="outlined"
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                        multiline
-                        rows={3}
-                        sx={{ mt: 2 }}
-                    />
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setEditDialogOpen(false)}>
-                        Hủy
-                    </Button>
-                    <Button
-                        onClick={handleEditMessage}
-                        disabled={isSending || !editContent.trim()}
-                    >
-                        Lưu
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
-            <Dialog
-                open={pinnedMessagesDialogOpen}
-                onClose={() => setPinnedMessagesDialogOpen(false)}
-            >
-                <DialogTitle>Tin nhắn đã ghim</DialogTitle>
-                <DialogContent>
-                    {pinnedMessages.length > 0 ? (
-                        <List>
-                            {pinnedMessages.map((message) => (
-                                <ListItem
-                                    key={message.id}
-                                    secondaryAction={
-                                        <IconButton
-                                            edge="end"
-                                            onClick={() =>
-                                                handleUnpinFromModal(message)
+                                                message.isPinned
+                                                    ? handleUnpinMessage(
+                                                          message,
+                                                      )
+                                                    : handlePinMessage(message)
                                             }
                                             disabled={isSending}
                                         >
                                             <BiPin />
                                         </IconButton>
+                                        {message.type === 'TEXT' && (
+                                            <IconButton
+                                                size="small"
+                                                onClick={() =>
+                                                    handleOpenEditDialog(
+                                                        message,
+                                                    )
+                                                }
+                                                disabled={isSending}
+                                            >
+                                                <BiEdit />
+                                            </IconButton>
+                                        )}
+
+                                        {/* Menu gom 3 hành động khác */}
+                                        <IconButton
+                                            size="small"
+                                            onClick={handleMenuOpen}
+                                        >
+                                            <BiDotsVerticalRounded />
+                                        </IconButton>
+                                        <Menu
+                                            anchorEl={anchorEl}
+                                            open={open}
+                                            onClose={handleMenuClose}
+                                        >
+                                            <MenuItem
+                                                onClick={() => {
+                                                    handleRecallMessage(
+                                                        message,
+                                                    );
+                                                    handleMenuClose();
+                                                }}
+                                                disabled={isSending}
+                                            >
+                                                <BiUndo
+                                                    style={{ marginRight: 8 }}
+                                                />{' '}
+                                                Thu hồi
+                                            </MenuItem>
+                                            <MenuItem
+                                                onClick={() => {
+                                                    handleDeleteMessage(
+                                                        message,
+                                                    );
+                                                    handleMenuClose();
+                                                }}
+                                                disabled={isSending}
+                                            >
+                                                <BiTrash
+                                                    style={{ marginRight: 8 }}
+                                                />{' '}
+                                                Xóa
+                                            </MenuItem>
+                                            <MenuItem
+                                                onClick={() => {
+                                                    handleOpenForwardDialog(
+                                                        message,
+                                                    );
+                                                    handleMenuClose();
+                                                }}
+                                                disabled={isSending}
+                                            >
+                                                <BiShare
+                                                    style={{ marginRight: 8 }}
+                                                />{' '}
+                                                Chuyển tiếp
+                                            </MenuItem>
+                                        </Menu>
+                                    </Box>
+                                )}
+                            <MessageBubble
+                                isSender={message.senderId === userId}
+                            >
+                                {message.isPinned && (
+                                    <PinIndicator>
+                                        <BiPin />
+                                    </PinIndicator>
+                                )}
+                                {message.recalled ? (
+                                    <Typography fontStyle="italic">
+                                        Tin nhắn đã được thu hồi
+                                    </Typography>
+                                ) : message.deletedByUsers?.includes(
+                                      message.senderId,
+                                  ) ||
+                                  message.deletedByUsers?.includes(
+                                      message.receiverId,
+                                  ) ||
+                                  message.deletedByUsers?.includes(userId) ? (
+                                    <Typography fontStyle="italic">
+                                        Tin nhắn đã bị xóa
+                                    </Typography>
+                                ) : message.type === 'TEXT' ? (
+                                    <>
+                                        {selectedContact.isGroup &&
+                                            message.senderId !== userId && (
+                                                <Typography
+                                                    variant="caption"
+                                                    display="block"
+                                                    sx={{ opacity: 0.7, mb: 1 }}
+                                                >
+                                                    {groupMembers.find(
+                                                        (m) =>
+                                                            m.id ===
+                                                            message.senderId,
+                                                    )?.username || 'Unknown'}
+                                                </Typography>
+                                            )}
+                                        <Typography>
+                                            {message.content}
+                                        </Typography>
+                                        {message.isEdited && (
+                                            <Typography
+                                                variant="caption"
+                                                sx={{
+                                                    opacity: 0.7,
+                                                    fontStyle: 'italic',
+                                                }}
+                                            >
+                                                (Đã chỉnh sửa)
+                                            </Typography>
+                                        )}
+                                    </>
+                                ) : message.type === 'IMAGE' ? (
+                                    <>
+                                        {selectedContact.isGroup &&
+                                            message.senderId !== userId && (
+                                                <Typography
+                                                    variant="caption"
+                                                    display="block"
+                                                    sx={{ opacity: 0.7, mb: 1 }}
+                                                >
+                                                    {groupMembers.find(
+                                                        (m) =>
+                                                            m.id ===
+                                                            message.senderId,
+                                                    )?.username || 'Unknown'}
+                                                </Typography>
+                                            )}
+                                        <img
+                                            src={message.content}
+                                            alt="Uploaded"
+                                            style={{
+                                                maxWidth: '200px',
+                                                borderRadius: '8px',
+                                                cursor: 'pointer',
+                                            }}
+                                            onClick={() =>
+                                                window.open(
+                                                    message.content,
+                                                    '_blank',
+                                                )
+                                            }
+                                        />
+                                    </>
+                                ) : message.type === 'VIDEO' ? (
+                                    <>
+                                        {selectedContact.isGroup &&
+                                            message.senderId !== userId && (
+                                                <Typography
+                                                    variant="caption"
+                                                    display="block"
+                                                    sx={{ opacity: 0.7, mb: 1 }}
+                                                >
+                                                    {groupMembers.find(
+                                                        (m) =>
+                                                            m.id ===
+                                                            message.senderId,
+                                                    )?.username || 'Unknown'}
+                                                </Typography>
+                                            )}
+                                        <video
+                                            src={message.content}
+                                            controls
+                                            style={{
+                                                maxWidth: '200px',
+                                                borderRadius: '8px',
+                                            }}
+                                        />
+                                    </>
+                                ) : message.type === 'AUDIO' ? (
+                                    <>
+                                        {selectedContact.isGroup &&
+                                            message.senderId !== userId && (
+                                                <Typography
+                                                    variant="caption"
+                                                    display="block"
+                                                    sx={{ opacity: 0.7, mb: 1 }}
+                                                >
+                                                    {groupMembers.find(
+                                                        (m) =>
+                                                            m.id ===
+                                                            message.senderId,
+                                                    )?.username || 'Unknown'}
+                                                </Typography>
+                                            )}
+                                        <audio
+                                            controls
+                                            style={{ maxWidth: '200px' }}
+                                        >
+                                            <source
+                                                src={message.content}
+                                                type="audio/mpeg"
+                                            />
+                                            <source
+                                                src={message.content}
+                                                type="audio/wav"
+                                            />
+                                            <source
+                                                src={message.content}
+                                                type="audio/ogg"
+                                            />
+                                            Trình duyệt của bạn không hỗ trợ
+                                            phát audio.
+                                        </audio>
+                                    </>
+                                ) : message.type === 'FORWARD' ? (
+                                    <>
+                                        {selectedContact.isGroup &&
+                                            message.senderId !== userId && (
+                                                <Typography
+                                                    variant="caption"
+                                                    display="block"
+                                                    sx={{ opacity: 0.7, mb: 1 }}
+                                                >
+                                                    {groupMembers.find(
+                                                        (m) =>
+                                                            m.id ===
+                                                            message.senderId,
+                                                    )?.username || 'Unknown'}
+                                                </Typography>
+                                            )}
+                                        <Box>
+                                            <Typography
+                                                fontStyle="italic"
+                                                variant="caption"
+                                            >
+                                                Chuyển tiếp từ{' '}
+                                                {message.forwardedFrom
+                                                    ?.senderId ||
+                                                    'người dùng khác'}
+                                            </Typography>
+                                            <Typography>
+                                                {message.content}
+                                            </Typography>
+                                        </Box>
+                                    </>
+                                ) : message.type === 'FILE' ? (
+                                    <>
+                                        {selectedContact.isGroup &&
+                                            message.senderId !== userId && (
+                                                <Typography
+                                                    variant="caption"
+                                                    display="block"
+                                                    sx={{ opacity: 0.7, mb: 1 }}
+                                                >
+                                                    {groupMembers.find(
+                                                        (m) =>
+                                                            m.id ===
+                                                            message.senderId,
+                                                    )?.username || 'Unknown'}
+                                                </Typography>
+                                            )}
+                                        <Box
+                                            sx={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 1,
+                                                padding: '8px 12px',
+                                                backgroundColor:
+                                                    message.senderId === userId
+                                                        ? 'rgba(255,255,255,0.2)'
+                                                        : '#f0f2f5',
+                                                borderRadius: '8px',
+                                                cursor: 'pointer',
+                                                '&:hover': {
+                                                    opacity: 0.8,
+                                                },
+                                            }}
+                                            onClick={async () => {
+                                                try {
+                                                    // Remove ?fl_attachment or &fl_attachment from old URLs
+                                                    let fileUrl =
+                                                        message.content;
+                                                    if (
+                                                        fileUrl.includes(
+                                                            '?fl_attachment',
+                                                        )
+                                                    ) {
+                                                        fileUrl =
+                                                            fileUrl.replace(
+                                                                '?fl_attachment',
+                                                                '',
+                                                            );
+                                                    }
+                                                    if (
+                                                        fileUrl.includes(
+                                                            '&fl_attachment',
+                                                        )
+                                                    ) {
+                                                        fileUrl =
+                                                            fileUrl.replace(
+                                                                '&fl_attachment',
+                                                                '',
+                                                            );
+                                                    }
+
+                                                    // Fetch file as blob to avoid navigation
+                                                    const response =
+                                                        await fetch(fileUrl);
+                                                    const blob =
+                                                        await response.blob();
+
+                                                    // Create blob URL and trigger download
+                                                    const blobUrl =
+                                                        window.URL.createObjectURL(
+                                                            blob,
+                                                        );
+                                                    const link =
+                                                        document.createElement(
+                                                            'a',
+                                                        );
+                                                    link.href = blobUrl;
+                                                    link.download =
+                                                        message.fileName ||
+                                                        'file';
+                                                    document.body.appendChild(
+                                                        link,
+                                                    );
+                                                    link.click();
+                                                    document.body.removeChild(
+                                                        link,
+                                                    );
+
+                                                    // Clean up blob URL
+                                                    window.URL.revokeObjectURL(
+                                                        blobUrl,
+                                                    );
+                                                } catch (error) {
+                                                    console.error(
+                                                        'Error downloading file:',
+                                                        error,
+                                                    );
+                                                    // Fallback: open in new tab with cleaned URL
+                                                    let fileUrl =
+                                                        message.content;
+                                                    if (
+                                                        fileUrl.includes(
+                                                            '?fl_attachment',
+                                                        )
+                                                    ) {
+                                                        fileUrl =
+                                                            fileUrl.replace(
+                                                                '?fl_attachment',
+                                                                '',
+                                                            );
+                                                    }
+                                                    if (
+                                                        fileUrl.includes(
+                                                            '&fl_attachment',
+                                                        )
+                                                    ) {
+                                                        fileUrl =
+                                                            fileUrl.replace(
+                                                                '&fl_attachment',
+                                                                '',
+                                                            );
+                                                    }
+                                                    window.open(
+                                                        fileUrl,
+                                                        '_blank',
+                                                    );
+                                                }
+                                            }}
+                                        >
+                                            <BiFile
+                                                size={32}
+                                                color={
+                                                    message.senderId === userId
+                                                        ? '#fff'
+                                                        : '#0091ff'
+                                                }
+                                            />
+                                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                <Typography
+                                                    variant="body2"
+                                                    sx={{
+                                                        fontWeight: 500,
+                                                        overflow: 'hidden',
+                                                        textOverflow:
+                                                            'ellipsis',
+                                                        whiteSpace: 'nowrap',
+                                                    }}
+                                                >
+                                                    {message.fileName ||
+                                                        'Tệp đính kèm'}
+                                                </Typography>
+                                                <Typography
+                                                    variant="caption"
+                                                    sx={{ opacity: 0.8 }}
+                                                >
+                                                    Nhấn để tải xuống
+                                                </Typography>
+                                            </Box>
+                                        </Box>
+                                    </>
+                                ) : (
+                                    <Typography>
+                                        Loại tin nhắn không được hỗ trợ
+                                    </Typography>
+                                )}
+                                <Typography
+                                    variant="caption"
+                                    display="block"
+                                    textAlign="right"
+                                    sx={{ opacity: 0.7 }}
+                                >
+                                    {new Date(
+                                        message.createAt,
+                                    ).toLocaleTimeString()}
+                                </Typography>
+                            </MessageBubble>
+                        </MessageContainer>
+                    ))}
+                    <div ref={messagesEndRef} />
+                </Box>
+
+                <Box
+                    p={1.5}
+                    borderTop={1}
+                    borderColor="divider"
+                    sx={{ bgcolor: 'background.paper', position: 'relative' }}
+                >
+                    {showEmojiPicker && (
+                        <Box
+                            sx={{
+                                position: 'absolute',
+                                bottom: '100%',
+                                right: 10,
+                                zIndex: 1000,
+                            }}
+                        >
+                            <Picker onEmojiClick={onEmojiClick} />
+                        </Box>
+                    )}
+                    <Box display="flex" alignItems="center" gap={1}>
+                        <IconButton
+                            size="medium"
+                            component="label"
+                            sx={{ color: '#0084ff' }}
+                            title="Gửi file"
+                        >
+                            <BiPaperclip size={24} />
+                            <input
+                                type="file"
+                                multiple
+                                hidden
+                                ref={documentInputRef}
+                                onChange={handleFileUpload}
+                                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
+                            />
+                        </IconButton>
+                        <IconButton
+                            size="medium"
+                            component="label"
+                            sx={{ color: '#0084ff' }}
+                        >
+                            <BiImage size={24} />
+                            <input
+                                type="file"
+                                multiple
+                                hidden
+                                ref={fileInputRef}
+                                onChange={handleFileUpload}
+                                accept="image/*,video/*,audio/*"
+                            />
+                        </IconButton>
+                        <IconButton size="medium" sx={{ color: '#0084ff' }}>
+                            <BiMicrophone size={24} />
+                        </IconButton>
+                        <TextField
+                            fullWidth
+                            placeholder={`Aa`}
+                            variant="outlined"
+                            size="small"
+                            value={messageInput}
+                            onChange={onMessageInputChange}
+                            onKeyPress={(e) =>
+                                e.key === 'Enter' && handleSendMessage()
+                            }
+                            inputRef={messageInputRef}
+                            sx={{
+                                '& .MuiOutlinedInput-root': {
+                                    borderRadius: '20px',
+                                    backgroundColor: '#f0f2f5',
+                                    '& fieldset': {
+                                        borderColor: 'transparent',
+                                    },
+                                    '&:hover fieldset': {
+                                        borderColor: 'transparent',
+                                    },
+                                    '&.Mui-focused fieldset': {
+                                        borderColor: '#0084ff',
+                                        borderWidth: '1px',
+                                    },
+                                },
+                            }}
+                        />
+                        <IconButton
+                            size="medium"
+                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                            sx={{ color: '#0084ff' }}
+                        >
+                            <BiSmile size={24} />
+                        </IconButton>
+                        {messageInput.trim() ? (
+                            <IconButton
+                                onClick={handleSendMessage}
+                                disabled={isSending}
+                                sx={{
+                                    color: '#0084ff',
+                                    '&:hover': {
+                                        bgcolor: 'rgba(0, 132, 255, 0.1)',
+                                    },
+                                }}
+                            >
+                                <BiSend size={24} />
+                            </IconButton>
+                        ) : null}
+                    </Box>
+                </Box>
+
+                <Dialog
+                    open={forwardDialogOpen}
+                    onClose={() => setForwardDialogOpen(false)}
+                >
+                    <DialogTitle>
+                        Chọn liên hệ hoặc nhóm để chuyển tiếp
+                    </DialogTitle>
+                    <DialogContent>
+                        <List>
+                            {contacts.map((contact) => (
+                                <ListItem
+                                    key={contact.id}
+                                    onClick={() =>
+                                        handleForwardMessage(contact)
                                     }
                                 >
+                                    <ListItemAvatar>
+                                        <Avatar src={contact.avatar}>
+                                            {contact.isGroup && <BiGroup />}
+                                        </Avatar>
+                                    </ListItemAvatar>
                                     <ListItemText
                                         primary={
-                                            message.type === 'IMAGE' ? (
-                                                <Box
-                                                    sx={{
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                    }}
-                                                >
-                                                    <img
-                                                        src={message.content}
-                                                        alt="Ảnh"
-                                                        style={{
-                                                            maxWidth: '100px',
-                                                            maxHeight: '60px',
-                                                            marginRight: '8px',
-                                                        }}
-                                                    />
-                                                    <Typography variant="body2">
-                                                        [Hình ảnh]
-                                                    </Typography>
-                                                </Box>
-                                            ) : message.type === 'VIDEO' ? (
-                                                <Box
-                                                    sx={{
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                    }}
-                                                >
-                                                    <video
-                                                        src={message.content}
-                                                        style={{
-                                                            maxWidth: '100px',
-                                                            maxHeight: '60px',
-                                                            marginRight: '8px',
-                                                        }}
-                                                    />
-                                                    <Typography variant="body2">
-                                                        [Video]
-                                                    </Typography>
-                                                </Box>
-                                            ) : message.type === 'AUDIO' ? (
-                                                <Typography>
-                                                    [Âm thanh]
-                                                </Typography>
-                                            ) : message.type === 'FILE' ? (
-                                                <Typography>
-                                                    {message.fileName ||
-                                                        '[Tệp đính kèm]'}
-                                                </Typography>
-                                            ) : (
-                                                message.content
-                                            )
+                                            contact.isGroup
+                                                ? `[Nhóm] ${contact.name}`
+                                                : contact.name
                                         }
-                                        secondary={`Từ: ${
-                                            selectedContact.isGroup
-                                                ? message.senderId === userId
-                                                    ? 'Bạn'
-                                                    : message.senderId
-                                                : message.senderId === userId
-                                                ? 'Bạn'
-                                                : selectedContact.name
-                                        } - ${new Date(
-                                            message.createAt,
-                                        ).toLocaleString()}`}
-                                        onClick={() =>
-                                            handleSelectMessage(message)
+                                        secondary={
+                                            contact.isGroup
+                                                ? 'Nhóm'
+                                                : contact.username
                                         }
-                                        sx={{ cursor: 'pointer' }}
                                     />
                                 </ListItem>
                             ))}
                         </List>
-                    ) : (
-                        <Typography>
-                            Không có tin nhắn nào được ghim.
-                        </Typography>
-                    )}
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setPinnedMessagesDialogOpen(false)}>
-                        Đóng
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                    </DialogContent>
+                </Dialog>
 
-            <FriendModal
-                open={isFriendModalOpen}
-                onClose={handleProfileClose}
-                profileData={profileData}
-                userId={userId}
-                token={token}
-                contacts={contacts}
-                onContactSelect={onSendMessage}
-            />
+                <Dialog
+                    open={editDialogOpen}
+                    onClose={() => setEditDialogOpen(false)}
+                >
+                    <DialogTitle>Chỉnh sửa tin nhắn</DialogTitle>
+                    <DialogContent>
+                        <TextField
+                            fullWidth
+                            label="Nội dung tin nhắn"
+                            variant="outlined"
+                            value={editContent}
+                            onChange={(e) => setEditContent(e.target.value)}
+                            multiline
+                            rows={3}
+                            sx={{ mt: 2 }}
+                        />
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={() => setEditDialogOpen(false)}>
+                            Hủy
+                        </Button>
+                        <Button
+                            onClick={handleEditMessage}
+                            disabled={isSending || !editContent.trim()}
+                        >
+                            Lưu
+                        </Button>
+                    </DialogActions>
+                </Dialog>
 
-            <VideoCallModal
-                open={callModalOpen}
-                onClose={handleEndCall}
-                contact={selectedContact}
-                isVideoCall={isVideoCall}
-                localStream={localStream}
-                remoteStream={remoteStream}
-                onToggleAudio={handleToggleAudio}
-                onToggleVideo={handleToggleVideo}
-                isAudioEnabled={isAudioEnabled}
-                isVideoEnabled={isVideoEnabled}
-                callStatus={callStatus}
-            />
+                <Dialog
+                    open={pinnedMessagesDialogOpen}
+                    onClose={() => setPinnedMessagesDialogOpen(false)}
+                >
+                    <DialogTitle>Tin nhắn đã ghim</DialogTitle>
+                    <DialogContent>
+                        {pinnedMessages.length > 0 ? (
+                            <List>
+                                {pinnedMessages.map((message) => (
+                                    <ListItem
+                                        key={message.id}
+                                        secondaryAction={
+                                            <IconButton
+                                                edge="end"
+                                                onClick={() =>
+                                                    handleUnpinFromModal(
+                                                        message,
+                                                    )
+                                                }
+                                                disabled={isSending}
+                                            >
+                                                <BiPin />
+                                            </IconButton>
+                                        }
+                                    >
+                                        <ListItemText
+                                            primary={
+                                                message.type === 'IMAGE' ? (
+                                                    <Box
+                                                        sx={{
+                                                            display: 'flex',
+                                                            alignItems:
+                                                                'center',
+                                                        }}
+                                                    >
+                                                        <img
+                                                            src={
+                                                                message.content
+                                                            }
+                                                            alt="Ảnh"
+                                                            style={{
+                                                                maxWidth:
+                                                                    '100px',
+                                                                maxHeight:
+                                                                    '60px',
+                                                                marginRight:
+                                                                    '8px',
+                                                            }}
+                                                        />
+                                                        <Typography variant="body2">
+                                                            [Hình ảnh]
+                                                        </Typography>
+                                                    </Box>
+                                                ) : message.type === 'VIDEO' ? (
+                                                    <Box
+                                                        sx={{
+                                                            display: 'flex',
+                                                            alignItems:
+                                                                'center',
+                                                        }}
+                                                    >
+                                                        <video
+                                                            src={
+                                                                message.content
+                                                            }
+                                                            style={{
+                                                                maxWidth:
+                                                                    '100px',
+                                                                maxHeight:
+                                                                    '60px',
+                                                                marginRight:
+                                                                    '8px',
+                                                            }}
+                                                        />
+                                                        <Typography variant="body2">
+                                                            [Video]
+                                                        </Typography>
+                                                    </Box>
+                                                ) : message.type === 'AUDIO' ? (
+                                                    <Typography>
+                                                        [Âm thanh]
+                                                    </Typography>
+                                                ) : message.type === 'FILE' ? (
+                                                    <Typography>
+                                                        {message.fileName ||
+                                                            '[Tệp đính kèm]'}
+                                                    </Typography>
+                                                ) : (
+                                                    message.content
+                                                )
+                                            }
+                                            secondary={`Từ: ${
+                                                selectedContact.isGroup
+                                                    ? message.senderId ===
+                                                      userId
+                                                        ? 'Bạn'
+                                                        : message.senderId
+                                                    : message.senderId ===
+                                                      userId
+                                                    ? 'Bạn'
+                                                    : selectedContact.name
+                                            } - ${new Date(
+                                                message.createAt,
+                                            ).toLocaleString()}`}
+                                            onClick={() =>
+                                                handleSelectMessage(message)
+                                            }
+                                            sx={{ cursor: 'pointer' }}
+                                        />
+                                    </ListItem>
+                                ))}
+                            </List>
+                        ) : (
+                            <Typography>
+                                Không có tin nhắn nào được ghim.
+                            </Typography>
+                        )}
+                    </DialogContent>
+                    <DialogActions>
+                        <Button
+                            onClick={() => setPinnedMessagesDialogOpen(false)}
+                        >
+                            Đóng
+                        </Button>
+                    </DialogActions>
+                </Dialog>
 
-            <ToastContainer position="bottom-right" autoClose={3000} />
-        </ChatContainer>
+                <FriendModal
+                    open={isFriendModalOpen}
+                    onClose={handleProfileClose}
+                    profileData={profileData}
+                    userId={userId}
+                    token={token}
+                    contacts={contacts}
+                    onContactSelect={onSendMessage}
+                />
+
+                <VideoCallModal
+                    open={callModalOpen}
+                    onClose={handleEndCall}
+                    contact={selectedContact}
+                    isVideoCall={isVideoCall}
+                    localStream={localStream}
+                    remoteStream={remoteStream}
+                    onToggleAudio={handleToggleAudio}
+                    onToggleVideo={handleToggleVideo}
+                    isAudioEnabled={isAudioEnabled}
+                    isVideoEnabled={isVideoEnabled}
+                    callStatus={callStatus}
+                />
+
+                <ToastContainer position="bottom-right" autoClose={3000} />
+            </ChatContainer>
+
+            {showGroupInfo &&
+                (selectedContact.isGroup ? (
+                    <GroupInfoPanel
+                        selectedContact={selectedContact}
+                        groupMembers={groupMembers}
+                        messages={localMessages}
+                        onClose={() => setShowGroupInfo(false)}
+                    />
+                ) : (
+                    <PersonalChatInfoPanel
+                        selectedContact={selectedContact}
+                        messages={localMessages}
+                        onClose={() => setShowGroupInfo(false)}
+                    />
+                ))}
+        </Box>
     );
 };
 

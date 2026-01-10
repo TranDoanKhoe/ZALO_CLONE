@@ -69,9 +69,10 @@ export const uploadFile = async (
     groupId = null,
     replyToMessageId = null,
 ) => {
-    if (!stompClient || !stompClient.connected) {
-        throw new Error('Không thể gửi file: WebSocket không hoạt động');
-    }
+    // Không cần kiểm tra WebSocket cho upload file
+    // if (!stompClient || !stompClient.connected) {
+    //     throw new Error('Không thể gửi file: WebSocket không hoạt động');
+    // }
     try {
         const formData = new FormData();
         files.forEach((file) => {
@@ -81,6 +82,12 @@ export const uploadFile = async (
         if (groupId) formData.append('groupId', groupId);
         if (replyToMessageId)
             formData.append('replyToMessageId', replyToMessageId);
+
+        console.log('Uploading to server:', {
+            receiverId,
+            groupId,
+            filesCount: files.length,
+        });
 
         const response = await axios.post(
             `${API_BASE_URL}/upload-file`,
@@ -92,6 +99,7 @@ export const uploadFile = async (
                 },
             },
         );
+        console.log('Upload response:', response.data);
         return response.data;
     } catch (error) {
         console.error('Error uploading file:', {

@@ -47,40 +47,75 @@ public class MessageController {
             @RequestParam(value = "groupId", required = false) String groupId,
             @RequestParam(value = "replyToMessageId", required = false) String replyToMessageId
     ) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String senderId = userRepository.findByUsername(authentication.getName()).getId();
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || authentication.getName() == null) {
+                log.error("No authentication found");
+                return ResponseEntity.status(401).body(List.of(Map.of("message", "Unauthorized")));
+            }
 
-        if (senderId == null) {
-            return ResponseEntity.status(401).build();
+            String senderId = userRepository.findByUsername(authentication.getName()).getId();
+
+            if (senderId == null) {
+                log.error("User not found for username: {}", authentication.getName());
+                return ResponseEntity.status(401).body(List.of(Map.of("message", "User not found")));
+            }
+
+            log.info("Uploading files: senderId={}, groupId={}, receiverId={}, filesCount={}", 
+                senderId, groupId, receiverId, files != null ? files.size() : 0);
+
+            if (files == null || files.isEmpty()) {
+                log.warn("No files to upload");
+                return ResponseEntity.badRequest().body(List.of(Map.of("message", "No files to upload")));
+            }
+
+            List<Map<String, String>> fileResults = new ArrayList<>();
+            for (MultipartFile file : files) {
+                try {
+                    log.info("Processing file: name={}, size={}, type={}", 
+                        file.getOriginalFilename(), file.getSize(), file.getContentType());
+                    
+                    MessageRequest request = new MessageRequest();
+                    request.setSenderId(senderId);
+                    request.setReceiverId(receiverId);
+                    request.setGroupId(groupId);
+                    request.setReplyToMessageId(replyToMessageId);
+                    
+                    Map<String, String> result = messageService.uploadFile(file, request);
+                    fileResults.add(result);
+                    log.info("File uploaded successfully: {}", result);
+                } catch (Exception e) {
+                    log.error("Error uploading file {}: {}", file.getOriginalFilename(), e.getMessage(), e);
+                    fileResults.add(Map.of(
+                        "error", "Failed to upload " + file.getOriginalFilename(),
+                        "message", e.getMessage()
+                    ));
+                }
+            }
+
+            log.info("All files processed. Success count: {}", fileResults.size());
+
+            // Send via WebSocket
+            try {
+                if (groupId != null) {
+                    webSocketService.sendMessageToGroup(groupId, fileResults);
+                } else {
+                    // Send to both sender and receiver
+                    webSocketService.sendMessageToUser(receiverId, fileResults);
+                    webSocketService.sendMessageToUser(senderId, fileResults);
+                }
+            } catch (Exception e) {
+                log.error("Error sending via WebSocket: {}", e.getMessage());
+                // Continue anyway as files are uploaded
+            }
+
+            return ResponseEntity.ok(fileResults);
+        } catch (Exception e) {
+            log.error("Unexpected error in uploadFile: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body(
+                List.of(Map.of("message", "Server error: " + e.getMessage()))
+            );
         }
-
-        log.debug("Uploading files: senderId={}, groupId={}, receiverId={}", senderId, groupId, receiverId);
-
-        if (files == null || files.isEmpty()) {
-            log.info("No files to upload");
-            return ResponseEntity.badRequest().body(List.of(Map.of("message", "No files to upload")));
-        }
-
-        List<Map<String, String>> fileResults = new ArrayList<>();
-        for (MultipartFile file : files) {
-            MessageRequest request = new MessageRequest();
-            request.setSenderId(senderId);
-            request.setReceiverId(receiverId);
-            request.setGroupId(groupId);
-            request.setReplyToMessageId(replyToMessageId);
-            fileResults.add(messageService.uploadFile(file, request));
-        }
-        log.info("Uploaded files: {}", fileResults);
-
-        if (groupId != null) {
-            webSocketService.sendMessageToGroup(groupId, fileResults);
-        } else {
-            // Send to both sender and receiver
-            webSocketService.sendMessageToUser(receiverId, fileResults);
-            webSocketService.sendMessageToUser(senderId, fileResults);
-        }
-
-        return new ResponseEntity<>(fileResults, HttpStatus.OK);
     }
 
     @GetMapping("/all-pinned-messages")

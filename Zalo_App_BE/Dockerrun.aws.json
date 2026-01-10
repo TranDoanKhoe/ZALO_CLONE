@@ -1,7 +1,7 @@
 {
   "AWSEBDockerrunVersion": "1",
   "Image": {
-    "Name": "luongtandat512/zalo_clone-backend:1",
+    "Name": "trandoankhoe/zalo_clone-backend:1",
     "Update": "true"
   },
   "Ports": [

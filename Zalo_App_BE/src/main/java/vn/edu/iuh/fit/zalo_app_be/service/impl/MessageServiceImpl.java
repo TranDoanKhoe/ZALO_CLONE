@@ -107,6 +107,14 @@ public class MessageServiceImpl implements MessageService {
             String resourceType;
             MessageType type;
 
+            // Check file size limit (100MB for all files)
+            if (file.getSize() > 100 * 1024 * 1024) {
+                log.error("File size exceeds limit: {} bytes", file.getSize());
+                throw new ResourceNotFoundException("File size exceeds limit (100MB)");
+            }
+
+            log.info("Processing file: {} with content type: {}, size: {} bytes", originalFileName, contentType, file.getSize());
+
             if (contentType != null) {
                 if (contentType.startsWith("image/")) {
                     resourceType = "image";
@@ -134,11 +142,13 @@ public class MessageServiceImpl implements MessageService {
                     resourceType = "audio";
                     type = MessageType.AUDIO;
                 } else {
+                    // Handle document files (Word, Excel, PDF, etc.)
+                    log.info("Processing as document/file type");
                     resourceType = "raw";
                     type = MessageType.FILE;
                 }
             } else {
-                log.info("Content type is null : {} , defaulting to raw", originalFileName);
+                log.info("Content type is null for: {}, defaulting to raw", originalFileName);
                 resourceType = "raw";
                 type = MessageType.FILE;
             }
@@ -158,31 +168,33 @@ public class MessageServiceImpl implements MessageService {
 
             log.info("Uploading file to Cloudinary: {} with public ID: {}", originalFileName, publicId);
 
-            // Simple upload without any options
-            Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.emptyMap());
+            // Upload to Cloudinary with resource type and raw format to preserve original file
+            Map uploadParams = ObjectUtils.asMap(
+                "resource_type", resourceType,
+                "use_filename", true,
+                "unique_filename", true,
+                "format", fileExtension.isEmpty() ? null : fileExtension.substring(1) // Remove the dot from extension
+            );
+            
+            Map uploadResult = cloudinary.uploader().upload(file.getBytes(), uploadParams);
             String url = (String) uploadResult.get("secure_url");
             String cloudinaryPublicId = (String) uploadResult.get("public_id");
             String thumbnail = (type == MessageType.VIDEO || type == MessageType.AUDIO) ? (String) uploadResult.get("thumbnail") : null;
 
-            Map resourceInfo = cloudinary.api().resource(cloudinaryPublicId, ObjectUtils.asMap("resource_type", resourceType));
-            if (resourceInfo == null || !url.equals(resourceInfo.get("secure_url"))) {
-                throw new ResourceNotFoundException("Upload file not found on Cloudinary");
-            }
+            log.info("File uploaded successfully to Cloudinary. URL: {}, PublicId: {}, Type: {}", url, cloudinaryPublicId, type);
 
-            String version = uploadResult.get("version").toString();
+            // Just use the original URL from Cloudinary
+            // Don't append fl_attachment as it causes 420 error on free plan
+            String finalUrl = url;
 
-            String signedUrl = cloudinary.url()
-                    .secure(true)
-                    .version(version)
-                    .resourceType(resourceType)
-                    .generate(cloudinaryPublicId);
+            String version = uploadResult.get("version") != null ? uploadResult.get("version").toString() : "1";
 
             Message message = new Message();
             message.setSenderId(request.getSenderId());
             message.setReceiverId(request.getReceiverId());
             message.setGroupId(request.getGroupId());
             message.setType(type);
-            message.setContent(url);
+            message.setContent(finalUrl);  // Use finalUrl instead of url for proper download
             message.setThumbnail(thumbnail);
             message.setPublicId(cloudinaryPublicId);
             message.setFileName(originalFileName);
@@ -199,7 +211,7 @@ public class MessageServiceImpl implements MessageService {
             MessageResponse messageResponse = convertToMessageResponse(saveMessage);
 
             return Map.of(
-                    "url", signedUrl,
+                    "url", finalUrl,  // Return finalUrl for proper download
                     "type", type.toString(),
                     "thumbnail", thumbnail != null ? thumbnail : "",
                     "fileName", originalFileName,
