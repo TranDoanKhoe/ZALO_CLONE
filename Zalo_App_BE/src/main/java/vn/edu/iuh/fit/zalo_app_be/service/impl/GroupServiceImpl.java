@@ -207,7 +207,10 @@ public class GroupServiceImpl implements GroupService {
             throw new ResourceNotFoundException("Group not found");
         }
 
-        group.get().setName(request.getName());
+        // Chỉ update name nếu có giá trị
+        if (request.getName() != null && !request.getName().isEmpty()) {
+            group.get().setName(request.getName());
+        }
 
         if (file != null && !file.isEmpty()) {
             if (file.getSize() > 10 * 1024 * 1024) {

@@ -8,6 +8,17 @@ import {
     Collapse,
     Switch,
     styled,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Button,
+    TextField,
+    List,
+    ListItem,
+    ListItemAvatar,
+    ListItemText,
+    Checkbox,
 } from '@mui/material';
 import {
     BiX,
@@ -25,6 +36,7 @@ import {
     BiShow,
     BiMessageAltError,
     BiTrash,
+    BiGroup,
 } from 'react-icons/bi';
 
 const PanelContainer = styled(Box)(({ theme }) => ({
@@ -79,7 +91,13 @@ const ActionButton = styled(Box)(({ theme }) => ({
     },
 }));
 
-const PersonalChatInfoPanel = ({ selectedContact, messages = [], onClose }) => {
+const PersonalChatInfoPanel = ({
+    selectedContact,
+    messages = [],
+    onClose,
+    contacts = [],
+    onCreateGroup,
+}) => {
     const [expandedSections, setExpandedSections] = useState({
         schedule: false,
         media: false,
@@ -89,6 +107,11 @@ const PersonalChatInfoPanel = ({ selectedContact, messages = [], onClose }) => {
     });
 
     const [isPrivateMode, setIsPrivateMode] = useState(false);
+    const [createGroupOpen, setCreateGroupOpen] = useState(false);
+    const [groupName, setGroupName] = useState('');
+    const [selectedMembers, setSelectedMembers] = useState([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [groupAvatar, setGroupAvatar] = useState(null);
 
     // Lọc ảnh và video
     const mediaMessages = messages.filter(
@@ -117,6 +140,50 @@ const PersonalChatInfoPanel = ({ selectedContact, messages = [], onClose }) => {
     const handleTogglePrivateMode = () => {
         setIsPrivateMode(!isPrivateMode);
     };
+
+    const handleOpenCreateGroup = () => {
+        setCreateGroupOpen(true);
+        setGroupName('');
+        setSelectedMembers([selectedContact.id]); // Tự động chọn người đang chat
+        setSearchQuery('');
+        setGroupAvatar(null);
+    };
+
+    const handleCloseCreateGroup = () => {
+        setCreateGroupOpen(false);
+        setGroupName('');
+        setSelectedMembers([]);
+        setSearchQuery('');
+        setGroupAvatar(null);
+    };
+
+    const handleToggleMember = (memberId) => {
+        setSelectedMembers((prev) =>
+            prev.includes(memberId)
+                ? prev.filter((id) => id !== memberId)
+                : [...prev, memberId],
+        );
+    };
+
+    const handleCreateGroup = async () => {
+        if (!groupName.trim() || selectedMembers.length === 0) {
+            return;
+        }
+
+        if (onCreateGroup) {
+            await onCreateGroup(groupName, selectedMembers, groupAvatar);
+        }
+        handleCloseCreateGroup();
+    };
+
+    // Lọc contacts để hiển thị trong modal
+    const availableContacts = contacts.filter(
+        (contact) =>
+            !contact.isGroup &&
+            contact.id !== selectedContact.id && // Không hiển thị người đang chat
+            (contact.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                contact.phone?.includes(searchQuery)),
+    );
 
     return (
         <PanelContainer>
@@ -208,6 +275,7 @@ const PersonalChatInfoPanel = ({ selectedContact, messages = [], onClose }) => {
                             alignItems: 'center',
                             cursor: 'pointer',
                         }}
+                        onClick={handleOpenCreateGroup}
                     >
                         <IconButton>
                             <BiUserPlus size={24} />
@@ -606,6 +674,244 @@ const PersonalChatInfoPanel = ({ selectedContact, messages = [], onClose }) => {
                     </Typography>
                 </ActionButton>
             </ScrollableContent>
+
+            {/* Dialog tạo nhóm */}
+            <Dialog
+                open={createGroupOpen}
+                onClose={handleCloseCreateGroup}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle
+                    sx={{
+                        textAlign: 'center',
+                        fontSize: '1.5rem',
+                        fontWeight: 'bold',
+                        color: 'primary.main',
+                        pb: 2,
+                    }}
+                >
+                    Tạo nhóm trò chuyện
+                </DialogTitle>
+                <DialogContent>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            mb: 3,
+                        }}
+                    >
+                        <Avatar
+                            src={
+                                groupAvatar ||
+                                'https://th.bing.com/th/id/R.0fb6fad84621ac768796c2c228858678?rik=EZHn72rbvK8jkg&pid=ImgRaw&r=0'
+                            }
+                            sx={{
+                                width: 100,
+                                height: 100,
+                                mb: 2,
+                                border: '3px solid',
+                                borderColor: 'primary.main',
+                                boxShadow: 2,
+                                cursor: 'pointer',
+                                '&:hover': {
+                                    opacity: 0.8,
+                                },
+                            }}
+                            onClick={() =>
+                                document
+                                    .getElementById('groupAvatarInput')
+                                    .click()
+                            }
+                        >
+                            {!groupAvatar && <BiGroup size={40} />}
+                        </Avatar>
+                        <input
+                            id="groupAvatarInput"
+                            type="file"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            onChange={(e) => {
+                                const file = e.target.files[0];
+                                if (file) {
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => {
+                                        setGroupAvatar(reader.result);
+                                    };
+                                    reader.readAsDataURL(file);
+                                }
+                            }}
+                        />
+                        <Typography variant="caption" color="textSecondary">
+                            Nhấn để thay đổi ảnh nhóm
+                        </Typography>
+                    </Box>
+
+                    <TextField
+                        fullWidth
+                        label="Tên nhóm"
+                        variant="outlined"
+                        value={groupName}
+                        onChange={(e) => setGroupName(e.target.value)}
+                        placeholder="Nhập tên nhóm..."
+                        sx={{ mb: 2 }}
+                    />
+
+                    <TextField
+                        fullWidth
+                        variant="outlined"
+                        placeholder="Tìm kiếm bạn bè..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        sx={{ mb: 2 }}
+                    />
+
+                    <Typography
+                        variant="subtitle1"
+                        sx={{
+                            mb: 1,
+                            fontWeight: 'medium',
+                            color: 'text.primary',
+                        }}
+                    >
+                        Thành viên đã chọn: {selectedMembers.length + 1}
+                    </Typography>
+
+                    {/* Hiển thị người đang chat (đã chọn mặc định) */}
+                    <Box
+                        sx={{
+                            mb: 2,
+                            p: 1,
+                            bgcolor: '#f0f2f5',
+                            borderRadius: 1,
+                        }}
+                    >
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                            }}
+                        >
+                            <Avatar
+                                src={selectedContact.avatar}
+                                sx={{ width: 32, height: 32 }}
+                            />
+                            <Typography variant="body2">
+                                {selectedContact.name} (đang chat)
+                            </Typography>
+                        </Box>
+                    </Box>
+
+                    <Typography
+                        variant="subtitle1"
+                        sx={{
+                            mb: 1,
+                            fontWeight: 'medium',
+                            color: 'text.primary',
+                        }}
+                    >
+                        Chọn thêm thành viên
+                    </Typography>
+
+                    <List
+                        sx={{
+                            maxHeight: 300,
+                            overflow: 'auto',
+                            bgcolor: 'background.paper',
+                            borderRadius: 2,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                        }}
+                    >
+                        {availableContacts.length === 0 ? (
+                            <ListItem>
+                                <ListItemText
+                                    primary="Không tìm thấy bạn bè phù hợp"
+                                    sx={{
+                                        textAlign: 'center',
+                                        color: 'text.secondary',
+                                    }}
+                                />
+                            </ListItem>
+                        ) : (
+                            availableContacts.map((contact) => (
+                                <ListItem
+                                    key={contact.id}
+                                    sx={{
+                                        borderBottom: '1px solid',
+                                        borderColor: 'divider',
+                                        '&:last-child': {
+                                            borderBottom: 'none',
+                                        },
+                                        '&:hover': {
+                                            bgcolor: 'action.hover',
+                                        },
+                                    }}
+                                >
+                                    <Checkbox
+                                        checked={selectedMembers.includes(
+                                            contact.id,
+                                        )}
+                                        onChange={() =>
+                                            handleToggleMember(contact.id)
+                                        }
+                                        sx={{
+                                            color: 'primary.main',
+                                            '&.Mui-checked': {
+                                                color: 'primary.main',
+                                            },
+                                        }}
+                                    />
+                                    <ListItemAvatar>
+                                        <Avatar
+                                            src={contact.avatar}
+                                            sx={{ width: 40, height: 40 }}
+                                        />
+                                    </ListItemAvatar>
+                                    <ListItemText
+                                        primary={contact.name}
+                                        secondary={
+                                            contact.phone || contact.username
+                                        }
+                                        primaryTypographyProps={{
+                                            fontWeight: 'medium',
+                                        }}
+                                    />
+                                </ListItem>
+                            ))
+                        )}
+                    </List>
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 3 }}>
+                    <Button
+                        onClick={handleCloseCreateGroup}
+                        variant="outlined"
+                        sx={{
+                            borderRadius: 2,
+                            textTransform: 'none',
+                            px: 3,
+                        }}
+                    >
+                        Hủy
+                    </Button>
+                    <Button
+                        onClick={handleCreateGroup}
+                        disabled={
+                            !groupName.trim() || selectedMembers.length === 0
+                        }
+                        variant="contained"
+                        sx={{
+                            borderRadius: 2,
+                            textTransform: 'none',
+                            px: 3,
+                        }}
+                    >
+                        Tạo nhóm
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </PanelContainer>
     );
 };

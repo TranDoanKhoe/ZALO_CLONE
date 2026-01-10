@@ -13,6 +13,13 @@ import {
     Switch,
     styled,
     Badge,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Button,
+    TextField,
+    Checkbox,
 } from '@mui/material';
 import {
     BiX,
@@ -92,6 +99,9 @@ const GroupInfoPanel = ({
     groupMembers = [],
     messages = [],
     onClose,
+    contacts = [],
+    onAddMembers,
+    onUpdateGroupInfo,
 }) => {
     const [expandedSections, setExpandedSections] = useState({
         members: true,
@@ -103,6 +113,12 @@ const GroupInfoPanel = ({
     });
 
     const [isPrivateMode, setIsPrivateMode] = useState(false);
+    const [addMemberOpen, setAddMemberOpen] = useState(false);
+    const [selectedNewMembers, setSelectedNewMembers] = useState([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [editNameOpen, setEditNameOpen] = useState(false);
+    const [newGroupName, setNewGroupName] = useState('');
+    const [newGroupAvatar, setNewGroupAvatar] = useState(null);
 
     // Lọc ảnh và video
     const mediaMessages = messages.filter(
@@ -132,6 +148,84 @@ const GroupInfoPanel = ({
         setIsPrivateMode(!isPrivateMode);
     };
 
+    const handleOpenAddMember = () => {
+        setAddMemberOpen(true);
+        setSelectedNewMembers([]);
+        setSearchQuery('');
+    };
+
+    const handleCloseAddMember = () => {
+        setAddMemberOpen(false);
+        setSelectedNewMembers([]);
+        setSearchQuery('');
+    };
+
+    const handleToggleNewMember = (memberId) => {
+        setSelectedNewMembers((prev) =>
+            prev.includes(memberId)
+                ? prev.filter((id) => id !== memberId)
+                : [...prev, memberId],
+        );
+    };
+
+    const handleAddMembers = async () => {
+        if (selectedNewMembers.length === 0) {
+            return;
+        }
+
+        if (onAddMembers) {
+            await onAddMembers(selectedContact.id, selectedNewMembers);
+        }
+        handleCloseAddMember();
+    };
+
+    // Lọc ra những người bạn chưa ở trong nhóm
+    const existingMemberIds = new Set(groupMembers.map((m) => m.id));
+    const availableContacts = contacts.filter(
+        (contact) =>
+            !contact.isGroup &&
+            !existingMemberIds.has(contact.id) &&
+            (contact.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                contact.phone?.includes(searchQuery)),
+    );
+
+    const handleOpenEditName = () => {
+        setNewGroupName(selectedContact?.name || '');
+        setEditNameOpen(true);
+    };
+
+    const handleCloseEditName = () => {
+        setEditNameOpen(false);
+        setNewGroupName('');
+    };
+
+    const handleUpdateGroupName = async () => {
+        if (!newGroupName.trim()) return;
+
+        if (onUpdateGroupInfo) {
+            await onUpdateGroupInfo(selectedContact.id, { name: newGroupName });
+        }
+        handleCloseEditName();
+    };
+
+    const handleAvatarChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            const avatarBase64 = reader.result;
+            setNewGroupAvatar(avatarBase64);
+
+            if (onUpdateGroupInfo) {
+                await onUpdateGroupInfo(selectedContact.id, {
+                    avatarGroup: avatarBase64,
+                });
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+
     return (
         <PanelContainer>
             {/* Header */}
@@ -156,19 +250,35 @@ const GroupInfoPanel = ({
                     }}
                 >
                     <Avatar
-                        src={selectedContact?.avatar}
+                        src={newGroupAvatar || selectedContact?.avatar}
                         sx={{
                             width: 80,
                             height: 80,
                             mb: 2,
+                            cursor: 'pointer',
+                            '&:hover': {
+                                opacity: 0.8,
+                            },
                         }}
+                        onClick={() =>
+                            document
+                                .getElementById('groupAvatarChangeInput')
+                                .click()
+                        }
                     >
                         {selectedContact?.name?.charAt(0)}
                     </Avatar>
+                    <input
+                        id="groupAvatarChangeInput"
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={handleAvatarChange}
+                    />
                     <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
                         {selectedContact?.name}
                     </Typography>
-                    <IconButton size="small">
+                    <IconButton size="small" onClick={handleOpenEditName}>
                         <BiEdit size={18} />
                     </IconButton>
                 </Box>
@@ -217,6 +327,7 @@ const GroupInfoPanel = ({
                             alignItems: 'center',
                             cursor: 'pointer',
                         }}
+                        onClick={handleOpenAddMember}
                     >
                         <IconButton>
                             <BiUserPlus size={24} />
@@ -749,6 +860,176 @@ const GroupInfoPanel = ({
                     <Typography variant="body2">Rời nhóm</Typography>
                 </ActionButton>
             </ScrollableContent>
+
+            {/* Dialog đổi tên nhóm */}
+            <Dialog
+                open={editNameOpen}
+                onClose={handleCloseEditName}
+                maxWidth="xs"
+                fullWidth
+            >
+                <DialogTitle>Đổi tên nhóm</DialogTitle>
+                <DialogContent>
+                    <TextField
+                        autoFocus
+                        fullWidth
+                        label="Tên nhóm mới"
+                        variant="outlined"
+                        value={newGroupName}
+                        onChange={(e) => setNewGroupName(e.target.value)}
+                        sx={{ mt: 2 }}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseEditName}>Hủy</Button>
+                    <Button
+                        onClick={handleUpdateGroupName}
+                        variant="contained"
+                        disabled={!newGroupName.trim()}
+                    >
+                        Lưu
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Dialog thêm thành viên */}
+            <Dialog
+                open={addMemberOpen}
+                onClose={handleCloseAddMember}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle
+                    sx={{
+                        textAlign: 'center',
+                        fontSize: '1.5rem',
+                        fontWeight: 'bold',
+                        color: 'primary.main',
+                        pb: 2,
+                    }}
+                >
+                    Thêm thành viên vào nhóm
+                </DialogTitle>
+                <DialogContent>
+                    <TextField
+                        fullWidth
+                        variant="outlined"
+                        placeholder="Tìm kiếm bạn bè..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        sx={{ mb: 2 }}
+                    />
+
+                    <Typography
+                        variant="subtitle1"
+                        sx={{
+                            mb: 1,
+                            fontWeight: 'medium',
+                            color: 'text.primary',
+                        }}
+                    >
+                        Đã chọn: {selectedNewMembers.length} người
+                    </Typography>
+
+                    <List
+                        sx={{
+                            maxHeight: 400,
+                            overflow: 'auto',
+                            bgcolor: 'background.paper',
+                            borderRadius: 2,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                        }}
+                    >
+                        {availableContacts.length === 0 ? (
+                            <ListItem>
+                                <ListItemText
+                                    primary={
+                                        searchQuery
+                                            ? 'Không tìm thấy bạn bè phù hợp'
+                                            : 'Tất cả bạn bè đã ở trong nhóm'
+                                    }
+                                    sx={{
+                                        textAlign: 'center',
+                                        color: 'text.secondary',
+                                    }}
+                                />
+                            </ListItem>
+                        ) : (
+                            availableContacts.map((contact) => (
+                                <ListItem
+                                    key={contact.id}
+                                    sx={{
+                                        borderBottom: '1px solid',
+                                        borderColor: 'divider',
+                                        '&:last-child': {
+                                            borderBottom: 'none',
+                                        },
+                                        '&:hover': {
+                                            bgcolor: 'action.hover',
+                                        },
+                                    }}
+                                >
+                                    <Checkbox
+                                        checked={selectedNewMembers.includes(
+                                            contact.id,
+                                        )}
+                                        onChange={() =>
+                                            handleToggleNewMember(contact.id)
+                                        }
+                                        sx={{
+                                            color: 'primary.main',
+                                            '&.Mui-checked': {
+                                                color: 'primary.main',
+                                            },
+                                        }}
+                                    />
+                                    <ListItemAvatar>
+                                        <Avatar
+                                            src={contact.avatar}
+                                            sx={{ width: 40, height: 40 }}
+                                        />
+                                    </ListItemAvatar>
+                                    <ListItemText
+                                        primary={contact.name}
+                                        secondary={
+                                            contact.phone || contact.username
+                                        }
+                                        primaryTypographyProps={{
+                                            fontWeight: 'medium',
+                                        }}
+                                    />
+                                </ListItem>
+                            ))
+                        )}
+                    </List>
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 3 }}>
+                    <Button
+                        onClick={handleCloseAddMember}
+                        variant="outlined"
+                        sx={{
+                            borderRadius: 2,
+                            textTransform: 'none',
+                            px: 3,
+                        }}
+                    >
+                        Hủy
+                    </Button>
+                    <Button
+                        onClick={handleAddMembers}
+                        disabled={selectedNewMembers.length === 0}
+                        variant="contained"
+                        sx={{
+                            borderRadius: 2,
+                            textTransform: 'none',
+                            px: 3,
+                        }}
+                    >
+                        Thêm thành viên
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </PanelContainer>
     );
 };

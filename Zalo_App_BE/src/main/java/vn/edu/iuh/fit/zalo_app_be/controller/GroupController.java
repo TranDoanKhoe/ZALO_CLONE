@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import vn.edu.iuh.fit.zalo_app_be.common.Roles;
 import vn.edu.iuh.fit.zalo_app_be.controller.request.GroupRequest;
 import vn.edu.iuh.fit.zalo_app_be.controller.response.GroupResponse;
@@ -76,5 +77,17 @@ public class GroupController {
         GroupResponse groupResponse = groupService.getUserInGroup(groupId);
         List<UserResponse> user = userService.findUsersByIds(groupResponse.getMemberIds());
         return new ResponseEntity<>(user, HttpStatus.OK);
+    }
+
+    @PutMapping("/{groupId}")
+    @Operation(summary = "Update group information", description = "Update group name and/or avatar.")
+    public ResponseEntity<GroupResponse> updateGroup(
+            @PathVariable String groupId,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) MultipartFile avatarGroup) {
+        log.info("Updating group: {} with name: {}", groupId, name);
+        GroupRequest request = new GroupRequest();
+        request.setName(name);
+        return new ResponseEntity<>(groupService.updateGroup(groupId, request, avatarGroup), HttpStatus.OK);
     }
 }

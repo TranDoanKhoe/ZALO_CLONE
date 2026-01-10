@@ -273,6 +273,7 @@ const ChatWindow = ({
         if (selectedContact?.isGroup) {
             fetchGroupMembers(selectedContact.id, token)
                 .then((members) => {
+                    console.log('Group members loaded:', members);
                     setGroupMembers(members);
                 })
                 .catch((error) => {
@@ -1334,11 +1335,25 @@ const ChatWindow = ({
                                                     display="block"
                                                     sx={{ opacity: 0.7, mb: 1 }}
                                                 >
-                                                    {groupMembers.find(
-                                                        (m) =>
-                                                            m.id ===
-                                                            message.senderId,
-                                                    )?.username || 'Unknown'}
+                                                    {(() => {
+                                                        const member =
+                                                            groupMembers.find(
+                                                                (m) =>
+                                                                    m.id ===
+                                                                    message.senderId,
+                                                            );
+                                                        return member
+                                                            ? `${
+                                                                  member.firstName ||
+                                                                  ''
+                                                              } ${
+                                                                  member.lastName ||
+                                                                  ''
+                                                              }`.trim() ||
+                                                                  member.username ||
+                                                                  'Unknown'
+                                                            : 'Unknown';
+                                                    })()}
                                                 </Typography>
                                             )}
                                         <Typography>
@@ -1365,11 +1380,25 @@ const ChatWindow = ({
                                                     display="block"
                                                     sx={{ opacity: 0.7, mb: 1 }}
                                                 >
-                                                    {groupMembers.find(
-                                                        (m) =>
-                                                            m.id ===
-                                                            message.senderId,
-                                                    )?.username || 'Unknown'}
+                                                    {(() => {
+                                                        const member =
+                                                            groupMembers.find(
+                                                                (m) =>
+                                                                    m.id ===
+                                                                    message.senderId,
+                                                            );
+                                                        return member
+                                                            ? `${
+                                                                  member.firstName ||
+                                                                  ''
+                                                              } ${
+                                                                  member.lastName ||
+                                                                  ''
+                                                              }`.trim() ||
+                                                                  member.username ||
+                                                                  'Unknown'
+                                                            : 'Unknown';
+                                                    })()}
                                                 </Typography>
                                             )}
                                         <img
@@ -1397,11 +1426,25 @@ const ChatWindow = ({
                                                     display="block"
                                                     sx={{ opacity: 0.7, mb: 1 }}
                                                 >
-                                                    {groupMembers.find(
-                                                        (m) =>
-                                                            m.id ===
-                                                            message.senderId,
-                                                    )?.username || 'Unknown'}
+                                                    {(() => {
+                                                        const member =
+                                                            groupMembers.find(
+                                                                (m) =>
+                                                                    m.id ===
+                                                                    message.senderId,
+                                                            );
+                                                        return member
+                                                            ? `${
+                                                                  member.firstName ||
+                                                                  ''
+                                                              } ${
+                                                                  member.lastName ||
+                                                                  ''
+                                                              }`.trim() ||
+                                                                  member.username ||
+                                                                  'Unknown'
+                                                            : 'Unknown';
+                                                    })()}
                                                 </Typography>
                                             )}
                                         <video
@@ -1422,11 +1465,25 @@ const ChatWindow = ({
                                                     display="block"
                                                     sx={{ opacity: 0.7, mb: 1 }}
                                                 >
-                                                    {groupMembers.find(
-                                                        (m) =>
-                                                            m.id ===
-                                                            message.senderId,
-                                                    )?.username || 'Unknown'}
+                                                    {(() => {
+                                                        const member =
+                                                            groupMembers.find(
+                                                                (m) =>
+                                                                    m.id ===
+                                                                    message.senderId,
+                                                            );
+                                                        return member
+                                                            ? `${
+                                                                  member.firstName ||
+                                                                  ''
+                                                              } ${
+                                                                  member.lastName ||
+                                                                  ''
+                                                              }`.trim() ||
+                                                                  member.username ||
+                                                                  'Unknown'
+                                                            : 'Unknown';
+                                                    })()}
                                                 </Typography>
                                             )}
                                         <audio
@@ -1458,11 +1515,25 @@ const ChatWindow = ({
                                                     display="block"
                                                     sx={{ opacity: 0.7, mb: 1 }}
                                                 >
-                                                    {groupMembers.find(
-                                                        (m) =>
-                                                            m.id ===
-                                                            message.senderId,
-                                                    )?.username || 'Unknown'}
+                                                    {(() => {
+                                                        const member =
+                                                            groupMembers.find(
+                                                                (m) =>
+                                                                    m.id ===
+                                                                    message.senderId,
+                                                            );
+                                                        return member
+                                                            ? `${
+                                                                  member.firstName ||
+                                                                  ''
+                                                              } ${
+                                                                  member.lastName ||
+                                                                  ''
+                                                              }`.trim() ||
+                                                                  member.username ||
+                                                                  'Unknown'
+                                                            : 'Unknown';
+                                                    })()}
                                                 </Typography>
                                             )}
                                         <Box>
@@ -1489,11 +1560,25 @@ const ChatWindow = ({
                                                     display="block"
                                                     sx={{ opacity: 0.7, mb: 1 }}
                                                 >
-                                                    {groupMembers.find(
-                                                        (m) =>
-                                                            m.id ===
-                                                            message.senderId,
-                                                    )?.username || 'Unknown'}
+                                                    {(() => {
+                                                        const member =
+                                                            groupMembers.find(
+                                                                (m) =>
+                                                                    m.id ===
+                                                                    message.senderId,
+                                                            );
+                                                        return member
+                                                            ? `${
+                                                                  member.firstName ||
+                                                                  ''
+                                                              } ${
+                                                                  member.lastName ||
+                                                                  ''
+                                                              }`.trim() ||
+                                                                  member.username ||
+                                                                  'Unknown'
+                                                            : 'Unknown';
+                                                    })()}
                                                 </Typography>
                                             )}
                                         <Box
@@ -2028,12 +2113,99 @@ const ChatWindow = ({
                         groupMembers={groupMembers}
                         messages={localMessages}
                         onClose={() => setShowGroupInfo(false)}
+                        contacts={contacts}
+                        onAddMembers={async (groupId, memberIds) => {
+                            if (!token) {
+                                toast.error(
+                                    'Vui lòng đăng nhập để thêm thành viên',
+                                );
+                                return;
+                            }
+                            try {
+                                const { addGroupMembers } = await import(
+                                    '../../api/groupApi'
+                                );
+                                await addGroupMembers(
+                                    groupId,
+                                    memberIds,
+                                    token,
+                                );
+                                toast.success('Đã thêm thành viên vào nhóm!');
+                                // Reload group members
+                                const { fetchGroupMembers } = await import(
+                                    '../../api/groupApi'
+                                );
+                                const updatedMembers = await fetchGroupMembers(
+                                    groupId,
+                                    token,
+                                );
+                                setGroupMembers(updatedMembers);
+                            } catch (error) {
+                                console.error('Error adding members:', error);
+                                toast.error(
+                                    'Lỗi thêm thành viên: ' + error.message,
+                                );
+                            }
+                        }}
+                        onUpdateGroupInfo={async (groupId, updates) => {
+                            if (!token) {
+                                toast.error(
+                                    'Vui lòng đăng nhập để cập nhật thông tin nhóm',
+                                );
+                                return;
+                            }
+                            try {
+                                const { updateGroupInfo } = await import(
+                                    '../../api/groupApi'
+                                );
+                                await updateGroupInfo(groupId, updates, token);
+                                toast.success('Đã cập nhật thông tin nhóm!');
+
+                                // Cập nhật selectedContact nếu đang xem nhóm này
+                                if (selectedContact?.id === groupId) {
+                                    // Reload lại thông tin nhóm để hiển thị cập nhật
+                                    window.location.reload();
+                                }
+                            } catch (error) {
+                                console.error(
+                                    'Error updating group info:',
+                                    error,
+                                );
+                                toast.error(
+                                    'Lỗi cập nhật thông tin nhóm: ' +
+                                        error.message,
+                                );
+                            }
+                        }}
                     />
                 ) : (
                     <PersonalChatInfoPanel
                         selectedContact={selectedContact}
                         messages={localMessages}
                         onClose={() => setShowGroupInfo(false)}
+                        contacts={contacts}
+                        onCreateGroup={async (groupName, memberIds) => {
+                            if (!token) {
+                                toast.error('Vui lòng đăng nhập để tạo nhóm');
+                                return;
+                            }
+                            try {
+                                const { createGroup } = await import(
+                                    '../../api/groupApi'
+                                );
+                                await createGroup(
+                                    groupName,
+                                    memberIds,
+                                    null,
+                                    token,
+                                );
+                                toast.success('Đã tạo nhóm thành công!');
+                                setShowGroupInfo(false);
+                            } catch (error) {
+                                console.error('Error creating group:', error);
+                                toast.error('Lỗi tạo nhóm: ' + error.message);
+                            }
+                        }}
                     />
                 ))}
         </Box>
