@@ -261,7 +261,6 @@ const ChatWindow = ({
             );
             setPinnedMessages(pinned);
             setPinnedMessagesDialogOpen(true);
-            toast.success('Đã tải danh sách tin nhắn đã ghim!');
         } catch (error) {
             console.error('Error fetching pinned messages:', error);
             let errorMessage = 'Lỗi tải tin nhắn đã ghim';
@@ -315,7 +314,6 @@ const ChatWindow = ({
                 };
                 onMessageInputChange({ target: { value: '' } });
                 onSendMessage(newMessage);
-                toast.success('Tin nhắn đã được gửi!');
             } else {
                 toast.error(
                     'Không thể gửi tin nhắn: WebSocket không hoạt động',
@@ -456,7 +454,7 @@ const ChatWindow = ({
                 token,
                 selectedContact.isGroup ? selectedContact.id : null,
             );
-            toast.success('File đang được gửi...');
+            // File sẽ tự động xuất hiện trong chat khi upload xong
         } catch (error) {
             console.error('Error uploading file:', {
                 message: error.message,
@@ -510,7 +508,7 @@ const ChatWindow = ({
                             : msg,
                     ),
                 );
-                toast.success('Tin nhắn đã được thu hồi!');
+                toast.success('Đã thu hồi');
             } else {
                 toast.error(
                     'Không thể thu hồi tin nhắn: WebSocket không hoạt động',
@@ -562,7 +560,7 @@ const ChatWindow = ({
                             : msg,
                     ),
                 );
-                toast.success('Tin nhắn đã được xóa!');
+                toast.success('Đã xóa');
             } else {
                 toast.error(
                     'Không thể xóa tin nhắn: WebSocket không hoạt động',
@@ -597,7 +595,7 @@ const ChatWindow = ({
                             : msg,
                     ),
                 );
-                toast.success('Tin nhắn đã được ghim!');
+                toast.success('Đã ghim');
             } else {
                 toast.error(
                     'Không thể ghim tin nhắn: WebSocket không hoạt động',
@@ -632,7 +630,7 @@ const ChatWindow = ({
                             : msg,
                     ),
                 );
-                toast.success('Tin nhắn đã được bỏ ghim!');
+                toast.success('Đã bỏ ghim');
             } else {
                 toast.error(
                     'Không thể bỏ ghim tin nhắn: WebSocket không hoạt động',
@@ -665,7 +663,7 @@ const ChatWindow = ({
                             : msg,
                     ),
                 );
-                toast.success('Tin nhắn đã được bỏ ghim!');
+                toast.success('Đã bỏ ghim');
             } else {
                 toast.error(
                     'Không thể bỏ ghim tin nhắn: WebSocket không hoạt động',
@@ -719,7 +717,7 @@ const ChatWindow = ({
                             : msg,
                     ),
                 );
-                toast.success('Tin nhắn đã được chỉnh sửa!');
+                toast.success('Đã chỉnh sửa');
             } else {
                 toast.error(
                     'Không thể chỉnh sửa tin nhắn: WebSocket không hoạt động',
@@ -769,7 +767,7 @@ const ChatWindow = ({
                 token,
             );
             if (success) {
-                toast.success('Tin nhắn đã được chuyển tiếp!');
+                toast.success('Đã chuyển tiếp');
             } else {
                 toast.error(
                     'Không thể chuyển tiếp tin nhắn: WebSocket không hoạt động',
@@ -1768,7 +1766,23 @@ const ChatWindow = ({
                     callStatus={callStatus}
                 />
 
-                <ToastContainer position="bottom-right" autoClose={3000} />
+                <ToastContainer
+                    position="top-right"
+                    autoClose={2000}
+                    hideProgressBar={false}
+                    newestOnTop
+                    closeOnClick
+                    rtl={false}
+                    pauseOnFocusLoss={false}
+                    draggable
+                    pauseOnHover
+                    theme="light"
+                    limit={3}
+                    style={{
+                        fontSize: '14px',
+                        fontFamily: 'inherit',
+                    }}
+                />
             </ChatContainer>
 
             {showGroupInfo &&

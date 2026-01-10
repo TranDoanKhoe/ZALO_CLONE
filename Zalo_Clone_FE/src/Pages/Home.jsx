@@ -169,6 +169,7 @@ const Home = () => {
         useState(false);
     const [groupAvatar, setGroupAvatar] = useState(null);
     const [headerSearchQuery, setHeaderSearchQuery] = useState('');
+    const [messageTab, setMessageTab] = useState('all'); // 'all', 'unread', 'stranger'
 
     // Incoming call states
     const [incomingCall, setIncomingCall] = useState(null);
@@ -1266,20 +1267,34 @@ const Home = () => {
     );
 
     const filteredContacts = useMemo(() => {
-        if (!headerSearchQuery.trim()) {
-            return contacts;
+        let filtered = contacts;
+
+        // Filter theo tab
+        if (messageTab === 'unread') {
+            filtered = filtered.filter((contact) => contact.unreadCount > 0);
+        } else if (messageTab === 'stranger') {
+            // Lọc tin nhắn từ người lạ (không có trong danh sách bạn bè)
+            filtered = filtered.filter(
+                (contact) => !contact.isFriend && !contact.isGroup,
+            );
         }
-        const filtered = contacts.filter(
-            (contact) =>
-                contact.name
-                    ?.toLowerCase()
-                    .includes(headerSearchQuery.toLowerCase()) ||
-                contact.phone?.includes(headerSearchQuery),
-        );
+
+        // Filter theo search query
+        if (headerSearchQuery.trim()) {
+            filtered = filtered.filter(
+                (contact) =>
+                    contact.name
+                        ?.toLowerCase()
+                        .includes(headerSearchQuery.toLowerCase()) ||
+                    contact.phone?.includes(headerSearchQuery),
+            );
+        }
+
+        console.log('Message tab:', messageTab);
         console.log('Search query:', headerSearchQuery);
         console.log('Filtered contacts:', filtered);
         return filtered;
-    }, [contacts, headerSearchQuery]);
+    }, [contacts, headerSearchQuery, messageTab]);
 
     return (
         <ErrorBoundary>
@@ -1355,24 +1370,47 @@ const Home = () => {
                             }}
                         >
                             <Box
+                                onClick={() => setMessageTab('all')}
                                 sx={{
                                     flex: 1,
                                     textAlign: 'center',
                                     pb: 1.5,
-                                    borderBottom: '2px solid #0068ff',
-                                    color: '#0068ff',
-                                    fontWeight: 'bold',
+                                    borderBottom:
+                                        messageTab === 'all'
+                                            ? '2px solid #0068ff'
+                                            : 'none',
+                                    color:
+                                        messageTab === 'all'
+                                            ? '#0068ff'
+                                            : '#666',
+                                    fontWeight:
+                                        messageTab === 'all'
+                                            ? 'bold'
+                                            : 'normal',
                                     cursor: 'pointer',
+                                    '&:hover': { color: '#0068ff' },
                                 }}
                             >
                                 Tất cả
                             </Box>
                             <Box
+                                onClick={() => setMessageTab('unread')}
                                 sx={{
                                     flex: 1,
                                     textAlign: 'center',
                                     pb: 1.5,
-                                    color: '#666',
+                                    borderBottom:
+                                        messageTab === 'unread'
+                                            ? '2px solid #0068ff'
+                                            : 'none',
+                                    color:
+                                        messageTab === 'unread'
+                                            ? '#0068ff'
+                                            : '#666',
+                                    fontWeight:
+                                        messageTab === 'unread'
+                                            ? 'bold'
+                                            : 'normal',
                                     cursor: 'pointer',
                                     '&:hover': { color: '#0068ff' },
                                 }}
@@ -1380,16 +1418,28 @@ const Home = () => {
                                 Chưa đọc
                             </Box>
                             <Box
+                                onClick={() => setMessageTab('stranger')}
                                 sx={{
                                     flex: 1,
                                     textAlign: 'center',
                                     pb: 1.5,
-                                    color: '#666',
+                                    borderBottom:
+                                        messageTab === 'stranger'
+                                            ? '2px solid #0068ff'
+                                            : 'none',
+                                    color:
+                                        messageTab === 'stranger'
+                                            ? '#0068ff'
+                                            : '#666',
+                                    fontWeight:
+                                        messageTab === 'stranger'
+                                            ? 'bold'
+                                            : 'normal',
                                     cursor: 'pointer',
                                     '&:hover': { color: '#0068ff' },
                                 }}
                             >
-                                Phân loại
+                                Người lạ
                             </Box>
                         </Box>
                         <Menu
